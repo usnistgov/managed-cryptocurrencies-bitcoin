@@ -7,9 +7,82 @@
 #define BITCOIN_AMOUNT_H
 
 #include <stdint.h>
+#include <serialize.h>
 
 /** Amount in satoshis (Can be negative) */
-typedef int64_t CAmount;
+typedef int64_t CAmountType;
+
+class CAmount
+{
+private:
+	CAmountType nValue;
+
+public:
+	CAmount() {
+		this->nValue = 0;
+	}
+	CAmount(const CAmountType& nValue) {
+		this->nValue = nValue;
+	}
+
+	ADD_SERIALIZE_METHODS;
+
+	template <typename Stream, typename Operation>
+	void SerializationOp(Stream& s, Operation ser_action) {
+		READWRITE(nValue);
+	}
+
+	CAmount& operator=(const CAmount& other) {
+		if (this != &other)
+			this->nValue = other.nValue;
+	        return *this;
+	}
+	CAmount& operator=(const CAmountType& other) {
+		this->nValue = other;
+	        return *this;
+	}
+
+	CAmount operator-() const {
+		return CAmount(-(this->nValue));
+	}
+	CAmountType* operator&() {
+		return &this->nValue;
+	}
+	operator CAmountType() const {
+		return this->nValue;
+	}
+
+	CAmount& operator+=(const CAmountType& val) {
+		this->nValue += val;
+		return *this;
+	}
+	CAmount& operator-=(const CAmountType& val) {
+		this->nValue -= val;
+		return *this;
+	}
+	CAmount& operator*=(const CAmountType& val) {
+		this->nValue *= val;
+		return *this;
+	}
+	CAmount& operator/=(const CAmountType& val) {
+		this->nValue /= val;
+		return *this;
+	}
+	CAmount operator/(const CAmountType& val) const {
+		return CAmount(this->nValue / val);
+	}
+	CAmount operator/(const int& val) const {
+		return CAmount(this->nValue / val);
+	}
+	CAmount& operator>>=(const int& val) {
+		this->nValue >>= val;
+		return *this;
+	}
+	CAmount& operator<<=(const int& val) {
+		this->nValue <<= val;
+		return *this;
+	}
+};
 
 static const CAmount COIN = 100000000;
 static const CAmount CENT = 1000000;
