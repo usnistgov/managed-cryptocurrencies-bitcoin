@@ -47,10 +47,14 @@ static CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesi
  *     CTxOut(nValue=50.00000000, scriptPubKey=0x5F1DF16B2B704C8A578D0B)
  *   vMerkleTree: 4a5e1e
  */
+
+/* Mine the genesis block with:
+ * bash$ export CORES=40 && seq 0 $(echo 2^32/$CORES|bc) $(echo 2^32-1|bc) | xargs -I {} -P$CORES bash -c './genesisgenx 0427313de2e56c56e525b196a264526c508ed557f7d61cd3d9a6480a3bb35e10ebdf42abe10aff1c4706431afbc5b1fa970a30ce1845a88cb31de33ff86476781b "BBC News 08/Oct/2018 Final call to save the world from climate catastrophe" 486604799 {} $(echo {}+2^32/$CORES-1|bc) 1538956800'
+*/
 static CBlock CreateGenesisBlock(uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount& genesisReward)
 {
-    const char* pszTimestamp = "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks";
-    const CScript genesisOutputScript = CScript() << ParseHex("04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f") << OP_CHECKSIG;
+    const char* pszTimestamp = "BBC News 08/Oct/2018 Final call to save the world from climate catastrophe";
+    const CScript genesisOutputScript = CScript() << ParseHex("0427313de2e56c56e525b196a264526c508ed557f7d61cd3d9a6480a3bb35e10ebdf42abe10aff1c4706431afbc5b1fa970a30ce1845a88cb31de33ff86476781b") << OP_CHECKSIG;
     return CreateGenesisBlock(pszTimestamp, genesisOutputScript, nTime, nNonce, nBits, nVersion, genesisReward);
 }
 
@@ -120,10 +124,10 @@ public:
         nDefaultPort = 8333;
         nPruneAfterHeight = 100000;
 
-        genesis = CreateGenesisBlock(1538682859, 1883598551, 0x1d00ffff, 1, 50 * COIN);
+        genesis = CreateGenesisBlock(1538956800, 582737719, 0x1d00ffff, 1, 50 * COIN);
         consensus.hashGenesisBlock = genesis.GetHash();
-        assert(consensus.hashGenesisBlock == uint256S("0x000000004bb2f64433d7334b8de627c5c8ff6b8aaa7080aa0cd3b6f96ab4abdb"));
-        assert(genesis.hashMerkleRoot == uint256S("0xb79cd41d9199ed9c122c3af022efa921be80bc2840643f67b4e375db363230f0"));
+        assert(consensus.hashGenesisBlock == uint256S("0x000000005669e52535111f09b575c19e719804390b8ee9ac166ca580d8c79637"));
+        assert(genesis.hashMerkleRoot == uint256S("0xb987a66b32fcba2c9e05c9cfc5fd137cd9852de00b64903841ac11ad3130a0c2"));
 
         // Note that of those which support the service bits prefix, most only support a subset of
         // possible options.
