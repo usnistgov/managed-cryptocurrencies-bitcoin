@@ -1341,7 +1341,7 @@ CAmount CWallet::GetCredit(const CTxOut& txout, const isminefilter& filter) cons
 {
     if (!MoneyRange(txout.nValue))
         throw std::runtime_error(std::string(__func__) + ": value out of range");
-    return ((IsMine(txout) & filter) ? txout.nValue : 0);
+    return ((IsMine(txout) & filter) ? txout.nValue : CAmount(0));
 }
 
 bool CWallet::IsChange(const CTxOut& txout) const
@@ -1370,7 +1370,7 @@ CAmount CWallet::GetChange(const CTxOut& txout) const
 {
     if (!MoneyRange(txout.nValue))
         throw std::runtime_error(std::string(__func__) + ": value out of range");
-    return (IsChange(txout) ? txout.nValue : 0);
+    return (IsChange(txout) ? txout.nValue : CAmount(0));
 }
 
 bool CWallet::IsMine(const CTransaction& tx) const
@@ -3478,7 +3478,7 @@ std::map<CTxDestination, CAmount> CWallet::GetAddressBalances()
                 if(!ExtractDestination(pcoin->tx->vout[i].scriptPubKey, addr))
                     continue;
 
-                CAmount n = IsSpent(walletEntry.first, i) ? 0 : pcoin->tx->vout[i].nValue;
+                CAmount n = IsSpent(walletEntry.first, i) ? CAmount(0) : pcoin->tx->vout[i].nValue;
 
                 if (!balances.count(addr))
                     balances[addr] = 0;

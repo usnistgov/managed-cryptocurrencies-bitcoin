@@ -74,6 +74,9 @@ public:
 	CAmount operator/(const int& val) const {
 		return CAmount(this->nValue / val);
 	}
+	CAmount operator/(const unsigned int& val) const {
+		return CAmount(this->nValue / val);
+	}
 	CAmount& operator>>=(const int& val) {
 		this->nValue >>= val;
 		return *this;
