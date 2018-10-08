@@ -14,7 +14,6 @@
 #include <memory>
 
 #include <chainparamsseeds.h>
-#include <policy/management.h>
 
 static CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesisOutputScript, uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount& genesisReward)
 {
@@ -113,6 +112,9 @@ public:
         // By default assume that the signatures in ancestors of this block are valid.
         consensus.defaultAssumeValid = uint256S("0x0000000000000000005214481d2d96f898e3d5416e43359c145944a909d242e0"); //506067
 
+	// Load the default managemet policy for the currency
+	currentPolicy = CManagementPolicy();
+
         /**
          * The message start string is designed to be unlikely to occur in normal data.
          * The characters are rarely used upper ASCII, not valid as UTF-8, and produce
@@ -125,10 +127,10 @@ public:
         nDefaultPort = 8333;
         nPruneAfterHeight = 100000;
 
-        genesis = CreateGenesisBlock(1538956800, 582737719, 0x1d00ffff, 1, 50 * COIN);
+        genesis = CreateGenesisBlock(1538956802, 3055587597, 0x1d00ffff, 1, currentPolicy.GetGenesisReward());
         consensus.hashGenesisBlock = genesis.GetHash();
-        assert(consensus.hashGenesisBlock == uint256S("0x000000005669e52535111f09b575c19e719804390b8ee9ac166ca580d8c79637"));
-        assert(genesis.hashMerkleRoot == uint256S("0xb987a66b32fcba2c9e05c9cfc5fd137cd9852de00b64903841ac11ad3130a0c2"));
+        assert(consensus.hashGenesisBlock == uint256S("0x00000000f39e9bff81ddd3d29c06a7007dc84475f310d717d9e6e80f77ff803f"));
+        assert(genesis.hashMerkleRoot == uint256S("0x007d73015f1dde6c6fe96123cb421a9abe38f046962cda780c215eca2981348e"));
 
         // Note that of those which support the service bits prefix, most only support a subset of
         // possible options.

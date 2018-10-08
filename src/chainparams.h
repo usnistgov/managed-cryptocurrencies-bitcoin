@@ -10,6 +10,7 @@
 #include <consensus/params.h>
 #include <primitives/block.h>
 #include <protocol.h>
+#include <policy/management.h>
 
 #include <memory>
 #include <vector>
@@ -91,6 +92,7 @@ protected:
     bool fMineBlocksOnDemand;
     CCheckpointData checkpointData;
     ChainTxData chainTxData;
+    CManagementPolicy currentPolicy;
 };
 
 /**

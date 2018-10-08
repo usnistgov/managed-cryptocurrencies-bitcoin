@@ -171,6 +171,11 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
     CAmount nValueOut = 0;
     for (const auto& txout : tx.vout)
     {
+        switch (txout.nValue.GetTXMode()) {
+            case CAmount::MODE_ROLE_CHANGE:
+            case CAmount::MODE_POLICY_CHANGE:
+                continue;
+	}
         if (txout.nValue < 0)
             return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-negative");
         if (txout.nValue > MAX_MONEY)

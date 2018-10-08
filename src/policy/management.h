@@ -27,23 +27,42 @@ public:
 		NOOP			= 15,
 	};
 
+	enum {
+		ACTION_ROLE_ADD = 0b1,
+		ACTION_ROLE_REM = 0b0,
+	};
+
 	struct CActivePolicy {
-		bool M_role_active			= true;
-		bool C_role_active			= true;
-		bool L_role_active			= true;
-		bool U_role_active			= true;
-		bool A_role_active			= true;
-		bool L_coin_transfer_active		= true;
-		CAmount C_coin_creation_limit		= 0;
-		bool block_reward_mode			= 0;
-		CAmount manual_reward_val		= 50 * COIN;
-		CAmount manual_reward_min		= 0;
-		float auto_reward_decay_val		= 0.5;
-		float auto_reward_decay_max		= 1.0;
-		CAmount minimum_tx_fee			= 3000;
-		unsigned int mng_tx_periodicity		= 0;
-		unsigned int mng_tx_min_per_period	= 0;
+		bool mRoleActive		= true;
+		bool cRoleActive		= true;
+		bool lRoleActive		= true;
+		bool uRoleActive		= true;
+		bool aRoleActive		= true;
+		bool lCoinTransferActive	= true;
+		CAmount cCoinCreationLimit	= 0;
+		bool blockRewardMode		= 0;
+		CAmount manualRewardVal		= 50 * COIN;
+		CAmount manualRewardMin		= 0;
+		float autoRewardDecayVal	= 0.5;
+		float autoRewardDecayMax	= 1.0;
+		CAmount minimumTXFee		= 3000;
+		unsigned int mng_TXPeriodicity	= 0;
+		unsigned int mngTXMinPerPeriod	= 0;
 	} activePolicy;
+
+	CAmount GetGenesisReward() const
+	{
+		return CAmount(	ACTION_ROLE_ADD,
+				this->activePolicy.mRoleActive,
+				this->activePolicy.cRoleActive,
+				this->activePolicy.lRoleActive,
+				this->activePolicy.uRoleActive,
+				this->activePolicy.aRoleActive);
+	}
+
+	CActivePolicy& GetActivePolicy() {
+		return this->activePolicy;
+	}
 };
 
 

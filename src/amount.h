@@ -14,7 +14,13 @@ typedef int64_t CAmountType;
 
 class CAmount
 {
-private:
+public:
+	enum CTXMode {
+		MODE_COIN_TRANSFER = 0b00,
+		MODE_ROLE_CHANGE   = 0b10,
+		MODE_POLICY_CHANGE = 0b11,
+	};
+
 	struct CRoleChangeMode {
 		CAmountType reserved :56;
 		CAmountType action :1;
@@ -45,7 +51,6 @@ private:
 		CAmountType val;
 	} nValue;
 
-public:
 	CAmount() {
 		this->nValue.ctm.mode  = 0;
 		this->nValue.ctm.amount = 0;
@@ -53,6 +58,24 @@ public:
 	CAmount(const CAmountType& nValue) {
 		this->nValue.ctm.mode  = 0;
 		this->nValue.ctm.amount = nValue;
+	}
+	CAmount(const bool action, const bool m_role, const bool c_role, const bool l_role, const bool u_role, const bool a_role) {
+		this->nValue.rcm.reserved = 0;
+		this->nValue.rcm.action = action;
+		this->nValue.rcm.a_role = a_role;
+		this->nValue.rcm.u_role = u_role;
+		this->nValue.rcm.l_role = l_role;
+		this->nValue.rcm.c_role = c_role;
+		this->nValue.rcm.m_role = m_role;
+		this->nValue.rcm.mode = MODE_ROLE_CHANGE;
+	}
+
+	CTXMode GetTXMode() const {
+		if (this->nValue.ctm.mode == MODE_COIN_TRANSFER)
+			return MODE_COIN_TRANSFER;
+		if (this->nValue.rcm.mode == MODE_ROLE_CHANGE)
+			return MODE_ROLE_CHANGE;
+		return MODE_POLICY_CHANGE;
 	}
 
 	ADD_SERIALIZE_METHODS;
