@@ -14,6 +14,7 @@
 #include <memory>
 
 #include <chainparamsseeds.h>
+#include <policy/management.h>
 
 static CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesisOutputScript, uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount& genesisReward)
 {
@@ -49,7 +50,7 @@ static CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesi
  */
 
 /* Mine the genesis block with:
- * bash$ export CORES=40 && seq 0 $(echo 2^32/$CORES|bc) $(echo 2^32-1|bc) | xargs -I {} -P$CORES bash -c './genesisgenx 0427313de2e56c56e525b196a264526c508ed557f7d61cd3d9a6480a3bb35e10ebdf42abe10aff1c4706431afbc5b1fa970a30ce1845a88cb31de33ff86476781b "BBC News 08/Oct/2018 Final call to save the world from climate catastrophe" 486604799 {} $(echo {}+2^32/$CORES-1|bc) 1538956800'
+ * bash$ export CORES=40 && seq 0 $(echo 2^32/$CORES|bc) $(echo 2^32-1|bc) | xargs -I {} -P$CORES bash -c './genesisgen 0427313de2e56c56e525b196a264526c508ed557f7d61cd3d9a6480a3bb35e10ebdf42abe10aff1c4706431afbc5b1fa970a30ce1845a88cb31de33ff86476781b "BBC News 08/Oct/2018 Final call to save the world from climate catastrophe" 486604799 {} $(echo {}+2^32/$CORES-1|bc) 1538956800'; killall genesisgen 
 */
 static CBlock CreateGenesisBlock(uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount& genesisReward)
 {
