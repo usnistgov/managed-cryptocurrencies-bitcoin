@@ -18,12 +18,28 @@
 
 UniValue ValueFromAmount(const CAmount& amount)
 {
-    bool sign = amount < 0;
-    int64_t n_abs = (sign ? -amount : amount);
-    int64_t quotient = n_abs / COIN;
-    int64_t remainder = n_abs % COIN;
-    return UniValue(UniValue::VNUM,
-            strprintf("%s%d.%08d", sign ? "-" : "", quotient, remainder));
+    if (amount.GetTXMode() == CAmount::MODE_COIN_TRANSFER) {
+        bool sign = amount < 0;
+        int64_t n_abs = (sign ? -amount : amount);
+        int64_t quotient = n_abs / COIN;
+        int64_t remainder = n_abs % COIN;
+        return UniValue(UniValue::VNUM,
+                strprintf("%s%d.%08d", sign ? "-" : "", quotient, remainder));
+    }
+    else if (amount.GetTXMode() == CAmount::MODE_ROLE_CHANGE) {
+        return UniValue(UniValue::VSTR,
+	        strprintf("action=%s roles=%c%c%c%c%c",
+                        amount.nValue.rcm.action ? "add" : "remove",
+			amount.nValue.rcm.m_role ? 'M' : '.',
+			amount.nValue.rcm.c_role ? 'C' : '.',
+			amount.nValue.rcm.l_role ? 'L' : '.',
+			amount.nValue.rcm.u_role ? 'U' : '.',
+			amount.nValue.rcm.a_role ? 'A' : '.'));
+    }
+    else {
+        // Should be MODE_POLICY_CHANGE
+        return UniValue(UniValue::VSTR, "To be implemented"); // TODO
+    }
 }
 
 std::string FormatScript(const CScript& script)

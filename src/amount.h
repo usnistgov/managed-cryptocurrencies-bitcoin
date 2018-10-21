@@ -22,21 +22,21 @@ public:
 	};
 
 	struct CRoleChangeMode {
-		CAmountType reserved :56;
-		CAmountType action :1;
-		CAmountType a_role :1;
-		CAmountType u_role :1;
-		CAmountType l_role :1;
-		CAmountType c_role :1;
-		CAmountType m_role :1;
-		CAmountType mode   :2;
+		uint64_t reserved :56;
+		uint64_t action :1;
+		uint64_t a_role :1;
+		uint64_t u_role :1;
+		uint64_t l_role :1;
+		uint64_t c_role :1;
+		uint64_t m_role :1;
+		uint64_t mode   :2;
 	};
 
 	struct CPolicyChangeMode {
-		CAmountType param :32;
-		CAmountType type  :29;
-		CAmountType perm  :1;
-		CAmountType mode  :2;
+		uint64_t param :32;
+		uint64_t type  :29;
+		uint64_t perm  :1;
+		uint64_t mode  :2;
 	};
 
 	struct CCoinTransferMode {
