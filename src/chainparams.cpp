@@ -316,8 +316,8 @@ public:
         // By default assume that the signatures in ancestors of this block are valid.
         consensus.defaultAssumeValid = uint256S("0x00");
 
-	// Load the default managemet policy for the currency
-	currentPolicy = CManagementPolicy();
+        // Load the default managemet policy for the currency
+        currentPolicy = CManagementPolicy();
 
         pchMessageStart[0] = 0xfa;
         pchMessageStart[1] = 0xbf;
@@ -326,9 +326,14 @@ public:
         nDefaultPort = 18444;
         nPruneAfterHeight = 1000;
 
-        genesis = CreateGenesisBlock(1538956802, 3055587597, 0x1d00ffff, 1, currentPolicy.GetGenesisReward());
+        genesis = CreateGenesisBlock(1538956802, 3055587597, 0x207fffff, 1, currentPolicy.GetGenesisReward());
+//        genesis = CreateGenesisBlock(1538956802, 3055587597, 0x1d00ffff, 1, currentPolicy.GetGenesisReward());
         consensus.hashGenesisBlock = genesis.GetHash();
-        assert(consensus.hashGenesisBlock == uint256S("0x00000000f39e9bff81ddd3d29c06a7007dc84475f310d717d9e6e80f77ff803f"));
+
+        std::cout << consensus.hashGenesisBlock.ToString() << std::endl;
+
+        assert(consensus.hashGenesisBlock == uint256S("0x1ad158810cbf709204eea9e837913120f1f951f5a0423898ca043c19dd4a31a2"));
+//        assert(consensus.hashGenesisBlock == uint256S("0x00000000f39e9bff81ddd3d29c06a7007dc84475f310d717d9e6e80f77ff803f"));
         assert(genesis.hashMerkleRoot == uint256S("0x007d73015f1dde6c6fe96123cb421a9abe38f046962cda780c215eca2981348e"));
 
         vFixedSeeds.clear(); //!< Regtest mode doesn't have any fixed seeds.
