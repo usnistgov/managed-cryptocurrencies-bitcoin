@@ -1,3 +1,4 @@
+
 Managed Cryptocurrency Architecture (*** This is RESEARCH code NOT meant to be production code ***)
 
 This is a research project to implement the concepts described in the below paper on creating a managed cryptocurrency architecture by modifying the implicit Bitcoin specification. This work is being done by the U.S. National Institute of Standards and Technology (NIST). The code here is NOT production code. It is experimental research code that is under development. A stable version is expected to be available, partially implementing the concepts in the paper, by March 2019.
@@ -12,6 +13,9 @@ Published in: 2018 17th IEEE International Conference On Trust, Security And Pri
 Direct NIST Paper Link: https://ws680.nist.gov/publication/get_pdf.cfm?pub_id=925164 
 
 IEEE Paper Link: https://ieeexplore.ieee.org/document/8456046
+
+Select News Articles: 
+https://www.ccn.com/the-us-government-maintains-a-fork-of-bitcoin/
 
 ---------------------------------------------------------------------------
 Below is the original Bitcoin text
