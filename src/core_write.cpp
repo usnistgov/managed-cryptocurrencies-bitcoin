@@ -37,6 +37,14 @@ UniValue ValueFromRoles(const bool roleM, const bool roleC, const bool roleL, co
                    roleA ? 'A' : '.'));
 }
 
+UniValue ValueFromPolicy(const bool perm, const uint32_t mode, const uint32_t param)
+{
+    return UniValue(UniValue::VSTR,
+               strprintf("mode=%u param=%u %s", // FIXME
+                   mode, param,
+                   perm ? "permanent" : "provisional"));
+}
+
 UniValue ValueFromTxOut(const TxOut& txout, const int32_t txversion)
 {
     UniValue out(UniValue::VOBJ);
@@ -48,11 +56,11 @@ UniValue ValueFromTxOut(const TxOut& txout, const int32_t txversion)
             break;
         case CTtransaction::VERSION_ROLE_CHANGE:
             txout = (const CTxOutRoleChange&) txout;
-            out.pushKV("roles", ValueFromAmount(txout.nValue));
+            out.pushKV("roles", ValueFromRoles(txout.fRoleM, txout.fRoleC, txout.fRoleL, txout.fRoleU, txout.fRoleA));
             break;
         case CTtransaction::VERSION_POLICY_CHANGE:
             txout = (const CTxOutPolicyChange&) txout;
-            out.pushKV("value", ValueFromAmount(txout.nValue));
+            out.pushKV("value", ValueFromPolicy(txout.fPermanent, txout.nMode, txout.nParam));
             break;
         default:
             LogPrint(BCLog::EXPERIMENT, "Unsupported transaction version: %d\n", txversion);
@@ -228,9 +236,8 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
     for (unsigned int i = 0; i < tx.vout.size(); i++) {
         const CTxOut& txout = tx.vout[i];
 
-        UniValue out(UniValue::VOBJ);
+        UniValue out = ValueFromTxOut(txout, tx.nVersion);
 
-        out.pushKV("value", ValueFromAmount(txout.nValue));
         out.pushKV("n", (int64_t)i);
 
         UniValue o(UniValue::VOBJ);
