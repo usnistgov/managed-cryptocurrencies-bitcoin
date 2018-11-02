@@ -26,6 +26,41 @@ UniValue ValueFromAmount(const CAmount& amount)
             strprintf("%s%d.%08d", sign ? "-" : "", quotient, remainder));
 }
 
+UniValue ValueFromRoles(const bool roleM, const bool roleC, const bool roleL, const bool roleU, const bool roleA)
+{
+    return UniValue(UniValue::VSTR,
+               strprintf("%c%c%c%c%c",
+                   roleM ? 'M' : '.',
+                   roleC ? 'C' : '.',
+                   roleL ? 'L' : '.',
+                   roleU ? 'U' : '.',
+                   roleA ? 'A' : '.'));
+}
+
+UniValue ValueFromTxOut(const TxOut& txout, const int32_t txversion)
+{
+    UniValue out(UniValue::VOBJ);
+
+    switch(txversion) {
+        case CTtransaction::VERSION_COIN_TRANSFER:
+            txout = (const CTxOutCoinTransfer&) txout;
+            out.pushKV("value", ValueFromAmount(txout.nValue));
+            break;
+        case CTtransaction::VERSION_ROLE_CHANGE:
+            txout = (const CTxOutRoleChange&) txout;
+            out.pushKV("roles", ValueFromAmount(txout.nValue));
+            break;
+        case CTtransaction::VERSION_POLICY_CHANGE:
+            txout = (const CTxOutPolicyChange&) txout;
+            out.pushKV("value", ValueFromAmount(txout.nValue));
+            break;
+        default:
+            LogPrint(BCLog::EXPERIMENT, "Unsupported transaction version: %d\n", txversion);
+            abort(); // FIXME
+    }
+    return out;
+}
+
 std::string FormatScript(const CScript& script)
 {
     std::string ret;
