@@ -439,6 +439,7 @@ UniValue createrawtransaction(const JSONRPCRequest& request)
 
             CTxOut out(nAmount, scriptPubKey);
             rawTx.vout.push_back(out);
+            rawTx.nVersion = CTransaction::VERSION_COIN_TRANSFER;
         }
     }
 

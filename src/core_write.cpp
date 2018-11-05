@@ -45,26 +45,25 @@ UniValue ValueFromPolicy(const bool perm, const uint32_t mode, const uint32_t pa
                    perm ? "permanent" : "provisional"));
 }
 
-UniValue ValueFromTxOut(const TxOut& txout, const int32_t txversion)
+UniValue ValueFromTxOut(const CTxOut& txout, const int32_t txversion) // TODO: Remoev txversion
 {
     UniValue out(UniValue::VOBJ);
 
     switch(txversion) {
-        case CTtransaction::VERSION_COIN_TRANSFER:
-            txout = (const CTxOutCoinTransfer&) txout;
+        case CTransaction::VERSION_COIN_TRANSFER:
+            assert(txout.nTxType == CTxOut::COIN_TRANSFER); // TODO: Remove when tests succeed
             out.pushKV("value", ValueFromAmount(txout.nValue));
             break;
-        case CTtransaction::VERSION_ROLE_CHANGE:
-            txout = (const CTxOutRoleChange&) txout;
-            out.pushKV("roles", ValueFromRoles(txout.fRoleM, txout.fRoleC, txout.fRoleL, txout.fRoleU, txout.fRoleA));
+        case CTransaction::VERSION_ROLE_CHANGE:
+            assert(txout.nTxType == CTxOut::ROLE_CHANGE); // TODO: Remove when tests succeed
+            out.pushKV("roles", ValueFromRoles(txout.nRole.fRoleM, txout.nRole.fRoleC, txout.nRole.fRoleL, txout.nRole.fRoleU, txout.nRole.fRoleA));
             break;
-        case CTtransaction::VERSION_POLICY_CHANGE:
-            txout = (const CTxOutPolicyChange&) txout;
-            out.pushKV("value", ValueFromPolicy(txout.fPermanent, txout.nMode, txout.nParam));
+        case CTransaction::VERSION_POLICY_CHANGE:
+            assert(txout.nTxType == CTxOut::POLICY_CHANGE); // TODO: Remove when tests succeed
+            out.pushKV("value", ValueFromPolicy(txout.nPolicy.fPrmnt, txout.nPolicy.nType, txout.nPolicy.nParam));
             break;
         default:
-            LogPrint(BCLog::EXPERIMENT, "Unsupported transaction version: %d\n", txversion);
-            abort(); // FIXME
+            LogPrint(BCLog::EXPERIMENT, "Unsupported transaction version: %d / CTxOut type: %u\n", txversion, txout.nTxType); // FIXME
     }
     return out;
 }
@@ -236,7 +235,7 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
     for (unsigned int i = 0; i < tx.vout.size(); i++) {
         const CTxOut& txout = tx.vout[i];
 
-        UniValue out = ValueFromTxOut(txout, tx.nVersion);
+        UniValue out = ValueFromTxOut(txout, tx.nVersion); // TODO: remove tx.nVersion
 
         out.pushKV("n", (int64_t)i);
 
