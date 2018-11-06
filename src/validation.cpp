@@ -1810,11 +1810,16 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
     uint256 hashPrevBlock = pindex->pprev == nullptr ? uint256() : pindex->pprev->GetBlockHash();
     assert(hashPrevBlock == view.GetBestBlock());
 
-    // Special case for the genesis block, skipping connection of its transactions
-    // (its coinbase is unspendable)
+    // Special case for the genesis block, adding all transactions without checking their inputs
     if (block.GetHash() == chainparams.GetConsensus().hashGenesisBlock) {
-        if (!fJustCheck)
+        if (!fJustCheck) {
             view.SetBestBlock(pindex->GetBlockHash());
+            for (unsigned int i = 0; i < block.vtx.size(); i++)
+            {
+                const CTransaction &tx = *(block.vtx[i]);
+                AddCoins(view, tx, pindex->nHeight);
+            }
+        }
         return true;
     }
 
