@@ -92,12 +92,12 @@ void CTxOut::SetNull()
             nRole.fRoleL = false;
             nRole.fRoleU = false;
             nRole.fRoleA = false;
-            nRole.nReserved = -1;
+            nRole.nReserved = CTxOut::NULL_ROLE_RESERVED;
             break;
         case POLICY_CHANGE:
             nPolicy.fPrmnt = false;
             nPolicy.nType = CManagementPolicy::NOOP;
-            nPolicy.nParam = -1;
+            nPolicy.nParam = CTxOut::NULL_POLICY_PARAM;
         case COIN_TRANSFER:
         default:
             nValue = -1;
@@ -111,9 +111,9 @@ bool CTxOut::IsNull() const
         case COIN_TRANSFER:
             return (nValue == -1);
         case ROLE_CHANGE:
-            return !nRole.fRoleM && !nRole.fRoleC && !nRole.fRoleL && !nRole.fRoleU && !nRole.fRoleA && (nRole.nReserved == -1);
+            return !nRole.fRoleM && !nRole.fRoleC && !nRole.fRoleL && !nRole.fRoleU && !nRole.fRoleA && (nRole.nReserved == CTxOut::NULL_ROLE_RESERVED);
         case POLICY_CHANGE:
-            return !nPolicy.fPrmnt && (nPolicy.nType == CManagementPolicy::NOOP) && (nPolicy.nParam == -1);
+            return !nPolicy.fPrmnt && (nPolicy.nType == CManagementPolicy::NOOP) && (nPolicy.nParam == CTxOut::NULL_POLICY_PARAM);
         default:
             LogPrint(BCLog::EXPERIMENT, "CTXout of invalid tx type: %u", nTxType);
             return true;

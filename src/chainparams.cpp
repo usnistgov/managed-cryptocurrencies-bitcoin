@@ -15,23 +15,23 @@
 
 #include <chainparamsseeds.h>
 
-static CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesisOutputScript, uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount& genesisReward)
+static CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesisOutputScript, uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, CManagementPolicy& policy)
 {
     CMutableTransaction txNew;
     txNew.nVersion = 1944;
     txNew.vin.resize(1);
     txNew.vout.resize(1);
     txNew.vin[0].scriptSig = CScript() << 486604799 << CScriptNum(4) << std::vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
-    txNew.vout[0].nValue = genesisReward;
+    txNew.vout[0].nValue = policy.GetCurrentReward();
     txNew.vout[0].scriptPubKey = genesisOutputScript;
 
     // New genesis transaction that grants all active roles to the manager's account
-    CMutableTransaction txManager; // FIXME Change this class so we can create a Role Change TxOut
+    CMutableTransaction txManager;
     txManager.nVersion = 1945;
     txManager.vin.resize(1);
     txManager.vout.resize(1);
     txManager.vin[0].scriptSig = CScript() << 486604799 << CScriptNum(4) << std::vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
-    txManager.vout[0].nValue = genesisReward;
+    txManager.vout[0].nRole = policy.GetActiveRoles();
     txManager.vout[0].scriptPubKey = genesisOutputScript;
 
     CBlock genesis;
@@ -40,6 +40,7 @@ static CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesi
     genesis.nNonce   = nNonce;
     genesis.nVersion = nVersion;
     genesis.vtx.push_back(MakeTransactionRef(std::move(txNew)));
+    genesis.vtx.push_back(MakeTransactionRef(std::move(txManager)));
     genesis.hashPrevBlock.SetNull();
     genesis.hashMerkleRoot = BlockMerkleRoot(genesis);
     return genesis;
@@ -48,18 +49,18 @@ static CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesi
 /**
  * Build the genesis block. 
  */
-static CBlock CreateGenesisBlock(uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount& genesisReward)
+static CBlock CreateGenesisBlock(uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, CManagementPolicy& policy)
 {
     const char* pszTimestamp = "BBC News 08/Oct/2018 Final call to save the world from climate catastrophe";
     const CScript genesisOutputScript = CScript() << ParseHex("0427313de2e56c56e525b196a264526c508ed557f7d61cd3d9a6480a3bb35e10ebdf42abe10aff1c4706431afbc5b1fa970a30ce1845a88cb31de33ff86476781b") << OP_CHECKSIG;
-    return CreateGenesisBlock(pszTimestamp, genesisOutputScript, nTime, nNonce, nBits, nVersion, genesisReward);
+    return CreateGenesisBlock(pszTimestamp, genesisOutputScript, nTime, nNonce, nBits, nVersion, policy);
 }
 
-static CBlock CreateTestGenesisBlock(uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount& genesisReward)
+static CBlock CreateTestGenesisBlock(uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, CManagementPolicy& policy)
 {
     const char* pszTimestamp = "BBC News 08/Oct/2018 Final call to save the world from climate catastrophe";
     const CScript genesisOutputScript = CScript() << ParseHex("047208168f6ba4b780fc4a179d084e34f22f130857f0479915bc030860449d6a4f77e595575c9665aad83688b945a28d1e13731d0878bee170bedc5d5ee07d36ec") << OP_CHECKSIG;
-    return CreateGenesisBlock(pszTimestamp, genesisOutputScript, nTime, nNonce, nBits, nVersion, genesisReward);
+    return CreateGenesisBlock(pszTimestamp, genesisOutputScript, nTime, nNonce, nBits, nVersion, policy);
 }
 
 void CChainParams::UpdateVersionBitsParameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout)
@@ -128,10 +129,10 @@ public:
         nDefaultPort = 8333;
         nPruneAfterHeight = 100000;
 
-        uint256 hashGenesisBlock = uint256S("0x000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f");
-        uint256 hashMerkleRoot   = uint256S("0x4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b");
+        uint256 hashGenesisBlock = uint256S("0x0000000025f89a13a8f847119f56cd62412bcc4b08fec28d917abd8677f5af3a");
+        uint256 hashMerkleRoot   = uint256S("0x70a8a7d2b4d9b2ce06f9c5bb8e631b18bad1bd9a9355689f77dd8db20fd53ad8");
 
-        genesis = CreateGenesisBlock(1231006505, 2083236893, 0x1d00ffff, 1, 50 * COIN);
+        genesis = CreateGenesisBlock(1538956803, 4205612976, 0x1d00ffff, 1, GetManagementPolicy());
         consensus.hashGenesisBlock = genesis.GetHash();
         if (consensus.hashGenesisBlock != hashGenesisBlock || genesis.hashMerkleRoot != hashMerkleRoot) {
             fprintf(stderr, "Mainnet genesis block needs to be re-mined:\n");
@@ -246,10 +247,10 @@ public:
         nDefaultPort = 18333;
         nPruneAfterHeight = 1000;
 
-        uint256 hashGenesisBlock = uint256S("0x000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943");
-        uint256 hashMerkleRoot   = uint256S("0x4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b");
+        uint256 hashGenesisBlock = uint256S("0x000000005cf01f3f9c3ea2bbe1d739de8a45e2d5a18c3036adeb39310ae5ce68");
+        uint256 hashMerkleRoot   = uint256S("0xe817c5b651c66a836d1e8cb925ddb2b8b1361149dfeb803a72cc966e7611ffe3");
 
-        genesis = CreateGenesisBlock(1296688602, 414098458, 0x1d00ffff, 1, 50 * COIN);
+        genesis = CreateTestGenesisBlock(1538956800, 3078884096, 0x1d00ffff, 1, GetManagementPolicy());
         consensus.hashGenesisBlock = genesis.GetHash();
         if (consensus.hashGenesisBlock != hashGenesisBlock || genesis.hashMerkleRoot != hashMerkleRoot) {
             fprintf(stderr, "Testnet genesis block needs to be re-mined:\n");
@@ -345,10 +346,10 @@ public:
         nDefaultPort = 18444;
         nPruneAfterHeight = 1000;
 
-        uint256 hashGenesisBlock = uint256S("0x0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206");
-        uint256 hashMerkleRoot   = uint256S("0x4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b");
+        uint256 hashGenesisBlock = uint256S("0x00000000ab244577682afdabce89c8833e8a6094921de418694860f1d5a168ef");
+        uint256 hashMerkleRoot   = uint256S("0xe817c5b651c66a836d1e8cb925ddb2b8b1361149dfeb803a72cc966e7611ffe3");
 
-        genesis = CreateTestGenesisBlock(1296688602, 2, 0x207fffff, 1, 50 * COIN);
+        genesis = CreateTestGenesisBlock(1538956800, 544527083, 0x207fffff, 1, GetManagementPolicy());
         consensus.hashGenesisBlock = genesis.GetHash();
         if (consensus.hashGenesisBlock != hashGenesisBlock || genesis.hashMerkleRoot != hashMerkleRoot) {
             fprintf(stderr, "Regtest genesis block needs to be re-mined:\n");
