@@ -37,10 +37,10 @@ static CBlock CreateGenesisBlock(const CScript& managerOutputScript, uint32_t nT
     txMgr.vin[0].scriptSig = CScript() << 486604799 << CScriptNum(4) << std::vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
     txMgr.vout[0] = CTxOut(
             policy.GetActivePolicy().fRoleMActive,
-	    policy.GetActivePolicy().fRoleCActive,
-	    policy.GetActivePolicy().fRoleLActive,
-	    policy.GetActivePolicy().fRoleUActive,
-	    policy.GetActivePolicy().fRoleAActive,
+            policy.GetActivePolicy().fRoleCActive,
+            policy.GetActivePolicy().fRoleLActive,
+            policy.GetActivePolicy().fRoleUActive,
+            policy.GetActivePolicy().fRoleAActive,
             managerOutputScript);
 
     // Build the genesis block
