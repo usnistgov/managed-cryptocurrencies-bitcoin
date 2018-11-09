@@ -167,17 +167,20 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
     if (::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS) * WITNESS_SCALE_FACTOR > MAX_BLOCK_WEIGHT)
         return state.DoS(100, false, REJECT_INVALID, "bad-txns-oversize");
 
-    // Check for negative or overflow output values
-    CAmount nValueOut = 0;
-    for (const auto& txout : tx.vout)
+    if (tx.nVersion == CTransaction::VERSION_COIN_TRANSFER)
     {
-        if (txout.nValue < 0)
-            return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-negative");
-        if (txout.nValue > MAX_MONEY)
-            return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-toolarge");
-        nValueOut += txout.nValue;
-        if (!MoneyRange(nValueOut))
-            return state.DoS(100, false, REJECT_INVALID, "bad-txns-txouttotal-toolarge");
+        // Check for negative or overflow output values
+        CAmount nValueOut = 0;
+        for (const auto& txout : tx.vout)
+        {
+            if (txout.nValue < 0)
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-negative");
+            if (txout.nValue > MAX_MONEY)
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-toolarge");
+            nValueOut += txout.nValue;
+            if (!MoneyRange(nValueOut))
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-txouttotal-toolarge");
+        }
     }
 
     // Check for duplicate inputs - note that this check is slow so we skip it in CheckBlock

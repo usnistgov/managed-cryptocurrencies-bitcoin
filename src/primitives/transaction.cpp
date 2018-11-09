@@ -66,6 +66,7 @@ CTxOut::CTxOut(
     nRole.fRoleL = fRoleLIn;
     nRole.fRoleU = fRoleUIn;
     nRole.fRoleA = fRoleAIn;
+    nRole.nReserved = NULL_ROLE_RESERVED;
     scriptPubKey = scriptPubKeyIn;
 }
 
@@ -105,15 +106,17 @@ void CTxOut::SetNull()
     }
 }
 
+#include <csignal>
+
 bool CTxOut::IsNull() const
 {
     switch(nTxType) {
         case COIN_TRANSFER:
             return (nValue == -1);
         case ROLE_CHANGE:
-            return !nRole.fRoleM && !nRole.fRoleC && !nRole.fRoleL && !nRole.fRoleU && !nRole.fRoleA && (nRole.nReserved == CTxOut::NULL_ROLE_RESERVED);
+            return !nRole.fRoleM && !nRole.fRoleC && !nRole.fRoleL && !nRole.fRoleU && !nRole.fRoleA && (nRole.nReserved == NULL_ROLE_RESERVED);
         case POLICY_CHANGE:
-            return !nPolicy.fPrmnt && (nPolicy.nType == CManagementPolicy::NOOP) && (nPolicy.nParam == CTxOut::NULL_POLICY_PARAM);
+            return !nPolicy.fPrmnt && (nPolicy.nType == CManagementPolicy::NOOP) && (nPolicy.nParam == NULL_POLICY_PARAM);
         default:
             LogPrint(BCLog::EXPERIMENT, "CTXout of invalid tx type: %u", nTxType);
             return true;

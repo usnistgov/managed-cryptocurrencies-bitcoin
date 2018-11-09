@@ -28,21 +28,21 @@ public:
     };
 
     struct CActivePolicy {
-        bool fRoleMActive        = true;
-        bool fRoleCActive        = true;
-        bool fRoleLActive        = true;
-        bool fRoleUActive        = true;
-        bool fRoleAActive        = true;
-        bool fRoleLCanMoveCoin     = true;
+        bool fRoleMActive               = true;
+        bool fRoleCActive               = true;
+        bool fRoleLActive               = true;
+        bool fRoleUActive               = true;
+        bool fRoleAActive               = true;
+        bool fRoleLCanMoveCoin          = true;
         CAmount nRoleCCoinCreationLimit = 0;
-        bool fBlockRewardAuto      = true;
-        CAmount nCurBlockReward     = 50 * COIN;
-        CAmount nMinBlockReward     = 0;
-        float nCurBlockRewardDecay   = 0.5;
-        float nMaxBlockRewardDecay   = 1.0;
-        CAmount nMinTxFee        = 3000;
-        int nManagementTxPeriodicity  = 0;
-        int nManagementTxMinPerPeriod  = 0;
+        bool fBlockRewardAuto           = true;
+        CAmount nCurBlockReward         = 50 * COIN;
+        CAmount nMinBlockReward         = 0;
+        float nCurBlockRewardDecay      = 0.5;
+        float nMaxBlockRewardDecay      = 1.0;
+        CAmount nMinTxFee               = 3000;
+        int nManagementTxPeriodicity    = 0;
+        int nManagementTxMinPerPeriod   = 0;
     } activePolicy;
 
     CActivePolicy& GetActivePolicy() {
@@ -60,7 +60,7 @@ public:
       role.fRoleL = activePolicy.fRoleLActive;
       role.fRoleU = activePolicy.fRoleUActive;
       role.fRoleA = activePolicy.fRoleAActive;
-      role.nReserved = 0;
+      role.nReserved = CTxOut::NULL_ROLE_RESERVED;
       return role;
     }
 };
