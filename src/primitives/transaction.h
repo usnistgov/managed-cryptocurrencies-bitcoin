@@ -174,6 +174,7 @@ public:
         const bool fRoleUIn,
         const bool fRoleAIn,
         CScript scriptPubKeyIn);
+    CTxOut(CRoleChangeMode& nRolesIn, CScript scriptPubKeyIn);
     CTxOut(
         const bool fPermanentIn,
         const uint32_t nTypeIn,

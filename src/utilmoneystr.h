@@ -13,6 +13,7 @@
 #include <string>
 
 #include <amount.h>
+#include <primitives/transaction.h>
 
 /* Do not use these functions to represent or parse monetary amounts to or from
  * JSON but use AmountFromValue and ValueFromAmount for that.
@@ -20,5 +21,7 @@
 std::string FormatMoney(const CAmount& n);
 bool ParseMoney(const std::string& str, CAmount& nRet);
 bool ParseMoney(const char* pszIn, CAmount& nRet);
+bool ParseRoles(const std::string& str, CTxOut::CRoleChangeMode& nRet);
+bool ParseRoles(const char* pszIn, CTxOut::CRoleChangeMode& nRet);
 
 #endif // BITCOIN_UTILMONEYSTR_H

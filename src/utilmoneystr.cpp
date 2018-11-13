@@ -75,3 +75,46 @@ bool ParseMoney(const char* pszIn, CAmount& nRet)
     nRet = nValue;
     return true;
 }
+
+bool ParseRoles(const std::string& str, CTxOut::CRoleChangeMode& nRet)
+{
+    return ParseRoles(str.c_str(), nRet);
+}
+
+
+bool ParseRoles(const char* pszIn, CTxOut::CRoleChangeMode& nRet)
+{
+    const char* p = pszIn;
+    CTxOut::CRoleChangeMode roles;
+
+    while (isspace(*p))
+        p++;
+    if (strlen(p) < 5)
+        return false;
+    if (*p == 'M' || *p == '.')
+        roles.fRoleM = (*p++ == 'M');
+    else
+        return false;
+    if (*p == 'C' || *p == '.')
+        roles.fRoleC = (*p++ == 'C');
+    else
+        return false;
+    if (*p == 'L' || *p == '.')
+        roles.fRoleL = (*p++ == 'L');
+    else
+        return false;
+    if (*p == 'U' || *p == '.')
+        roles.fRoleU = (*p++ == 'U');
+    else
+        return false;
+    if (*p == 'A' || *p == '.')
+        roles.fRoleA = (*p++ == 'A');
+    else
+        return false;
+    roles.nReserved = CTxOut::NULL_ROLE_RESERVED;
+
+    nRet = roles;
+    return true;
+}
+
+
