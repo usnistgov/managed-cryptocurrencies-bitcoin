@@ -13,6 +13,7 @@ Blockchain based cryptocurrencies are usually unmanaged, distributed, consensus-
 **Published in:** 2018 17th IEEE International Conference On Trust, Security And Privacy In Computing And Communications/ 12th IEEE International Conference On Big Data Science And Engineering (TrustCom/BigDataSE)
 
 **Links:**
+
 Direct NIST Paper Link: https://ws680.nist.gov/publication/get_pdf.cfm?pub_id=925164 
 
 IEEE Paper Link: https://ieeexplore.ieee.org/document/8456046
