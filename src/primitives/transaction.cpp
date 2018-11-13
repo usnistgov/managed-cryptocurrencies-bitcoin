@@ -70,7 +70,7 @@ CTxOut::CTxOut(
     scriptPubKey = scriptPubKeyIn;
 }
 
-CTxOut::CTxOut(CRoleChangeMode& nRolesIn, CScript scriptPubKeyIn)
+CTxOut::CTxOut(const CRoleChangeMode& nRolesIn, CScript scriptPubKeyIn)
 {
     nTxType = ROLE_CHANGE;
     nRole = nRolesIn;

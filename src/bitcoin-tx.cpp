@@ -200,7 +200,6 @@ static void MutateTxVersion(CMutableTransaction& tx, const std::string& cmdVal)
     int64_t newVersion = atoi64(cmdVal);
     if (newVersion < 1 || newVersion > CTransaction::MAX_STANDARD_VERSION)
         throw std::runtime_error("Invalid TX version requested");
-
     tx.nVersion = (int) newVersion;
 }
 
@@ -283,19 +282,19 @@ static void MutateTxAddOutAddr(CMutableTransaction& tx, const std::string& strIn
         throw std::runtime_error("invalid TX output address");
     }
     CScript scriptPubKey = GetScriptForDestination(destination);
-		
+
     switch (tx.nVersion) {
         case CTransaction::VERSION_COIN_TRANSFER:
 		    // Extract and validate VALUE
-		    CAmount value = ExtractAndValidateValue(vStrInputParts[0]);
 		    // Construct TxOut, append to transaction output list
-		    tx.vout.push_back(CTxOut(value, scriptPubKey));
+		    tx.vout.push_back(
+                CTxOut(ExtractAndValidateValue(vStrInputParts[0]), scriptPubKey));
             break;
         case CTransaction::VERSION_ROLE_CHANGE:
 		    // Extract and validate ROLES
-            CTxOut::CRoleChangeMode roles = ExtractAndValidateRoles(vStrInputParts[0]);
 		    // Construct TxOut, append to transaction output list
-		    tx.vout.push_back(CTxOut(roles, scriptPubKey));
+		    tx.vout.push_back(
+                CTxOut(ExtractAndValidateRoles(vStrInputParts[0]), scriptPubKey));
             break;
         case CTransaction::VERSION_POLICY_CHANGE:
             // TODO
@@ -338,19 +337,19 @@ static void MutateTxAddOutPubKey(CMutableTransaction& tx, const std::string& str
         // Get the ID for the script, and then construct a P2SH destination for it.
         scriptPubKey = GetScriptForDestination(CScriptID(scriptPubKey));
     }
-		
+
     switch (tx.nVersion) {
         case CTransaction::VERSION_COIN_TRANSFER:
 		    // Extract and validate VALUE
-		    CAmount value = ExtractAndValidateValue(vStrInputParts[0]);
 		    // construct TxOut, append to transaction output list
-		    tx.vout.push_back(CTxOut(value, scriptPubKey));
+		    tx.vout.push_back(
+                CTxOut(ExtractAndValidateValue(vStrInputParts[0]), scriptPubKey));
             break;
         case CTransaction::VERSION_ROLE_CHANGE:
 		    // Extract and validate ROLES
-            CTxOut::CRoleChangeMode roles = ExtractAndValidateRoles(vStrInputParts[0]);
 		    // construct TxOut, append to transaction output list
-		    tx.vout.push_back(CTxOut(roles, scriptPubKey));
+		    tx.vout.push_back(
+                CTxOut(ExtractAndValidateRoles(vStrInputParts[0]), scriptPubKey));
             break;
         case CTransaction::VERSION_POLICY_CHANGE:
             // TODO
@@ -423,19 +422,19 @@ static void MutateTxAddOutMultiSig(CMutableTransaction& tx, const std::string& s
         // Get the ID for the script, and then construct a P2SH destination for it.
         scriptPubKey = GetScriptForDestination(CScriptID(scriptPubKey));
     }
-		
+
     switch (tx.nVersion) {
         case CTransaction::VERSION_COIN_TRANSFER:
 		    // Extract and validate VALUE
-		    CAmount value = ExtractAndValidateValue(vStrInputParts[0]);
 		    // construct TxOut, append to transaction output list
-		    tx.vout.push_back(CTxOut(value, scriptPubKey));
+		    tx.vout.push_back(
+                CTxOut(ExtractAndValidateValue(vStrInputParts[0]), scriptPubKey));
             break;
         case CTransaction::VERSION_ROLE_CHANGE:
 		    // Extract and validate ROLES
-            CTxOut::CRoleChangeMode roles = ExtractAndValidateRoles(vStrInputParts[0]);
 		    // construct TxOut, append to transaction output list
-		    tx.vout.push_back(CTxOut(roles, scriptPubKey));
+		    tx.vout.push_back(
+                CTxOut(ExtractAndValidateRoles(vStrInputParts[0]), scriptPubKey));
             break;
         case CTransaction::VERSION_POLICY_CHANGE:
             // TODO
@@ -461,21 +460,16 @@ static void MutateTxAddOutData(CMutableTransaction& tx, const std::string& strIn
 
     switch (tx.nVersion) {
         case CTransaction::VERSION_COIN_TRANSFER:
-            CAmount value = 0;
-            if (pos != std::string::npos) {
-                // Extract and validate VALUE
-                value = ExtractAndValidateValue(strInput.substr(0, pos));
-            }
-            tx.vout.push_back(CTxOut(value, CScript() << OP_RETURN << data));
+            tx.vout.push_back(
+                CTxOut(
+                    CAmount(pos != std::string::npos ? ExtractAndValidateValue(strInput.substr(0, pos)) : 0),
+                    CScript() << OP_RETURN << data));
             break;
         case CTransaction::VERSION_ROLE_CHANGE:
-		    // Extract and validate ROLES
-            CTxOut::CRoleChangeMode roles = {false, false, false, false, false, CTxOut::NULL_ROLE_RESERVED };
-            if (pos != std::string::npos) {
-                // Extract and validate VALUE
-                roles = ExtractAndValidateRoles(strInput.substr(0, pos));
-            }
-            tx.vout.push_back(CTxOut(roles, CScript() << OP_RETURN << data));
+            tx.vout.push_back(
+                CTxOut(
+                    pos != std::string::npos ? ExtractAndValidateRoles(strInput.substr(0, pos)) : CTxOut::CRoleChangeMode({ CTxOut::NULL_ROLE_RESERVED, false, false, false, false, false }),
+                    CScript() << OP_RETURN << data));
             break;
         case CTransaction::VERSION_POLICY_CHANGE:
             // TODO
@@ -523,15 +517,15 @@ static void MutateTxAddOutScript(CMutableTransaction& tx, const std::string& str
     switch (tx.nVersion) {
         case CTransaction::VERSION_COIN_TRANSFER:
             // Extract and validate VALUE
-            CAmount value = ExtractAndValidateValue(vStrInputParts[0]);
             // construct TxOut, append to transaction output list
-            tx.vout.push_back(CTxOut(value, scriptPubKey));
+            tx.vout.push_back(
+                CTxOut(ExtractAndValidateValue(vStrInputParts[0]), scriptPubKey));
             break;
         case CTransaction::VERSION_ROLE_CHANGE:
 		    // Extract and validate ROLES
-            CTxOut::CRoleChangeMode roles = ExtractAndValidateRoles(vStrInputParts[0]);
             // construct TxOut, append to transaction output list
-            tx.vout.push_back(CTxOut(roles, scriptPubKey));
+            tx.vout.push_back(
+                CTxOut(ExtractAndValidateRoles(vStrInputParts[0]), scriptPubKey));
             break;
         case CTransaction::VERSION_POLICY_CHANGE:
             // TODO
