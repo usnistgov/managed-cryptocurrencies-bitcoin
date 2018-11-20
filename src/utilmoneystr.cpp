@@ -87,8 +87,6 @@ bool ParseRoles(const char* pszIn, CTxOut::CRoleChangeMode& nRet)
     const char* p = pszIn;
     CTxOut::CRoleChangeMode roles;
 
-std::cout << "ParseRoles: " << pszIn << std::endl;
-
     while (isspace(*p))
         p++;
     if (strlen(p) < 5)

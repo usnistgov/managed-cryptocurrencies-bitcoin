@@ -728,10 +728,12 @@ static bool AcceptToMemoryPoolWorker(const CChainParams& chainparams, CTxMemPool
             return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool min fee not met", false, strprintf("%d < %d", nFees, mempoolRejectFee));
         }
 
-        // No transactions are allowed below minRelayTxFee except from disconnected blocks
-        if (!bypass_limits && nModifiedFees < ::minRelayTxFee.GetFee(nSize)) {
-            return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "min relay fee not met");
-        }
+        if (tx.nVersion == CTransaction::VERSION_COIN_TRANSFER) {
+          // No transactions are allowed below minRelayTxFee except from disconnected blocks
+          if (!bypass_limits && nModifiedFees < ::minRelayTxFee.GetFee(nSize)) {
+              return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "min relay fee not met");
+          }
+	}
 
         if (nAbsurdFee && nFees > nAbsurdFee)
             return state.Invalid(false,
