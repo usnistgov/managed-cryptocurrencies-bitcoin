@@ -99,6 +99,11 @@ bool CCoinsViewCache::SpendCoin(const COutPoint &outpoint, Coin* moveout) {
     CCoinsMap::iterator it = FetchCoin(outpoint);
     if (it == cacheCoins.end()) return false;
     cachedCoinsUsage -= it->second.coin.DynamicMemoryUsage();
+    // If policy or role change mode, pretend we spent the transaction but don't erase it.
+    if(it->second.coin.out.nTxType == CTxOut::ROLE_CHANGE || it->second.coin.out.nTxType == CTxOut::POLICY_CHANGE) {
+        moveout = nullptr;
+        return true;
+    }
     if (moveout) {
         *moveout = std::move(it->second.coin);
     }
