@@ -6,8 +6,10 @@
 #include <primitives/transaction.h>
 
 #include <hash.h>
+#include <util.h>
 #include <tinyformat.h>
 #include <utilstrencodings.h>
+#include <policy/management.h>
 
 std::string COutPoint::ToString() const
 {
@@ -45,14 +47,112 @@ std::string CTxIn::ToString() const
 
 CTxOut::CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn)
 {
+    nTxType = COIN_TRANSFER;
     nValue = nValueIn;
     scriptPubKey = scriptPubKeyIn;
 }
 
+CTxOut::CTxOut(
+        const bool fRoleMIn,
+        const bool fRoleCIn,
+        const bool fRoleLIn,
+        const bool fRoleUIn,
+        const bool fRoleAIn,
+        CScript scriptPubKeyIn)
+{
+    nTxType = ROLE_CHANGE;
+    nRole.fRoleM = fRoleMIn;
+    nRole.fRoleC = fRoleCIn;
+    nRole.fRoleL = fRoleLIn;
+    nRole.fRoleU = fRoleUIn;
+    nRole.fRoleA = fRoleAIn;
+    nRole.nReserved = NULL_ROLE_RESERVED;
+    scriptPubKey = scriptPubKeyIn;
+}
+
+CTxOut::CTxOut(const CRoleChangeMode& nRolesIn, CScript scriptPubKeyIn)
+{
+    nTxType = ROLE_CHANGE;
+    nRole = nRolesIn;
+    scriptPubKey = scriptPubKeyIn;
+}
+
+CTxOut::CTxOut(
+        const bool fPermanentIn,
+        const uint32_t nTypeIn,
+        const uint32_t nParamIn,
+        CScript scriptPubKeyIn)
+{
+    nTxType = POLICY_CHANGE;
+    nPolicy.fPrmnt = fPermanentIn;
+    nPolicy.nType  = nTypeIn;
+    nPolicy.nParam = nParamIn;
+    scriptPubKey = scriptPubKeyIn;
+}
+
+void CTxOut::SetNull()
+{
+    scriptPubKey.clear();
+    switch(nTxType) {
+        case ROLE_CHANGE:
+            nRole.fRoleM = false;
+            nRole.fRoleC = false;
+            nRole.fRoleL = false;
+            nRole.fRoleU = false;
+            nRole.fRoleA = false;
+            nRole.nReserved = CTxOut::NULL_ROLE_RESERVED;
+            break;
+        case POLICY_CHANGE:
+            nPolicy.fPrmnt = false;
+            nPolicy.nType = CManagementPolicy::NOOP;
+            nPolicy.nParam = CTxOut::NULL_POLICY_PARAM;
+        case COIN_TRANSFER:
+        default:
+            nValue = -1;
+            break;
+    }
+}
+
+#include <csignal>
+
+bool CTxOut::IsNull() const
+{
+    switch(nTxType) {
+        case COIN_TRANSFER:
+            return (nValue == -1);
+        case ROLE_CHANGE:
+            return !nRole.fRoleM && !nRole.fRoleC && !nRole.fRoleL && !nRole.fRoleU && !nRole.fRoleA && (nRole.nReserved == NULL_ROLE_RESERVED);
+        case POLICY_CHANGE:
+            return !nPolicy.fPrmnt && (nPolicy.nType == CManagementPolicy::NOOP) && (nPolicy.nParam == NULL_POLICY_PARAM);
+        default:
+            LogPrint(BCLog::EXPERIMENT, "CTXout of invalid tx type: %u", nTxType);
+            return true;
+    }
+}
+
 std::string CTxOut::ToString() const
 {
-    return strprintf("CTxOut(nValue=%d.%08d, scriptPubKey=%s)", nValue / COIN, nValue % COIN, HexStr(scriptPubKey).substr(0, 30));
+    switch(nTxType) {
+        case COIN_TRANSFER:
+            return strprintf("CTxOut(nValue=%d.%08d, scriptPubKey=%s)", nValue / COIN, nValue % COIN, HexStr(scriptPubKey).substr(0, 30));
+        case ROLE_CHANGE:
+            return strprintf("CTxOut(nRole=%c%c%c%c%c, scriptPubKey=%s)",
+                    nRole.fRoleM ? 'M' : '.',
+                    nRole.fRoleC ? 'C' : '.',
+                    nRole.fRoleL ? 'L' : '.',
+                    nRole.fRoleU ? 'U' : '.',
+                    nRole.fRoleA ? 'A' : '.',
+                    HexStr(scriptPubKey).substr(0, 30));
+        case POLICY_CHANGE:
+            return strprintf("CTxOut(fPrmnt=%s, nType=%u, nParam=%u, scriptPubKey=%s)",
+                    nPolicy.fPrmnt ? "permanent" : "provisional",
+                    nPolicy.nType, nPolicy.nParam,
+                    HexStr(scriptPubKey).substr(0, 30));
+        default:
+            return strprintf("CTxOut(Invalid tx type: %u)", nTxType);
+    }
 }
+
 
 CMutableTransaction::CMutableTransaction() : nVersion(CTransaction::CURRENT_VERSION), nLockTime(0) {}
 CMutableTransaction::CMutableTransaction(const CTransaction& tx) : vin(tx.vin), vout(tx.vout), nVersion(tx.nVersion), nLockTime(tx.nLockTime) {}

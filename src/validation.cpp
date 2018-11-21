@@ -728,10 +728,12 @@ static bool AcceptToMemoryPoolWorker(const CChainParams& chainparams, CTxMemPool
             return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool min fee not met", false, strprintf("%d < %d", nFees, mempoolRejectFee));
         }
 
-        // No transactions are allowed below minRelayTxFee except from disconnected blocks
-        if (!bypass_limits && nModifiedFees < ::minRelayTxFee.GetFee(nSize)) {
-            return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "min relay fee not met");
-        }
+        if (tx.nVersion != CTransaction::VERSION_ROLE_CHANGE && tx.nVersion != CTransaction::VERSION_POLICY_CHANGE) {
+          // No transactions are allowed below minRelayTxFee except from disconnected blocks
+          if (!bypass_limits && nModifiedFees < ::minRelayTxFee.GetFee(nSize)) {
+              return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "min relay fee not met");
+          }
+	}
 
         if (nAbsurdFee && nFees > nAbsurdFee)
             return state.Invalid(false,
@@ -1810,11 +1812,16 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
     uint256 hashPrevBlock = pindex->pprev == nullptr ? uint256() : pindex->pprev->GetBlockHash();
     assert(hashPrevBlock == view.GetBestBlock());
 
-    // Special case for the genesis block, skipping connection of its transactions
-    // (its coinbase is unspendable)
+    // Special case for the genesis block, adding all transactions without checking their inputs
     if (block.GetHash() == chainparams.GetConsensus().hashGenesisBlock) {
-        if (!fJustCheck)
+        if (!fJustCheck) {
             view.SetBestBlock(pindex->GetBlockHash());
+            for (unsigned int i = 0; i < block.vtx.size(); i++)
+            {
+                const CTransaction &tx = *(block.vtx[i]);
+                AddCoins(view, tx, pindex->nHeight);
+            }
+        }
         return true;
     }
 
@@ -3026,9 +3033,10 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
     // First transaction must be coinbase, the rest must not be
     if (block.vtx.empty() || !block.vtx[0]->IsCoinBase())
         return state.DoS(100, false, REJECT_INVALID, "bad-cb-missing", false, "first tx is not coinbase");
-    for (unsigned int i = 1; i < block.vtx.size(); i++)
-        if (block.vtx[i]->IsCoinBase())
-            return state.DoS(100, false, REJECT_INVALID, "bad-cb-multiple", false, "more than one coinbase");
+    if (block.GetHash() != consensusParams.hashGenesisBlock)
+        for (unsigned int i = 1; i < block.vtx.size(); i++)
+            if (block.vtx[i]->IsCoinBase())
+                return state.DoS(100, false, REJECT_INVALID, "bad-cb-multiple", false, "more than one coinbase");
 
     // Check transactions
     for (const auto& tx : block.vtx)

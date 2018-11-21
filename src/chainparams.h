@@ -9,6 +9,7 @@
 #include <chainparamsbase.h>
 #include <consensus/params.h>
 #include <primitives/block.h>
+#include <policy/management.h>
 #include <protocol.h>
 
 #include <memory>
@@ -73,6 +74,7 @@ public:
     const CCheckpointData& Checkpoints() const { return checkpointData; }
     const ChainTxData& TxData() const { return chainTxData; }
     void UpdateVersionBitsParameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout);
+    CManagementPolicy& GetManagementPolicy() { return managementPolicy; }
 protected:
     CChainParams() {}
 
@@ -91,6 +93,7 @@ protected:
     bool fMineBlocksOnDemand;
     CCheckpointData checkpointData;
     ChainTxData chainTxData;
+    CManagementPolicy managementPolicy;
 };
 
 /**

@@ -80,6 +80,7 @@ static int AppInitRawTx(int argc, char* argv[])
         strUsage += HelpMessageOpt("nversion=N", _("Set TX version to N"));
         strUsage += HelpMessageOpt("replaceable(=N)", _("Set RBF opt-in sequence number for input N (if not provided, opt-in all available inputs)"));
         strUsage += HelpMessageOpt("outaddr=VALUE:ADDRESS", _("Add address-based output to TX"));
+        strUsage += HelpMessageOpt("outaddr=ROLES:ADDRESS", _("Add address-based output to TX") + ". " + _("Roles have to be MCLUA in that order. Replace a role by '.' (dot) to deactivate/not activate a role."));
         strUsage += HelpMessageOpt("outpubkey=VALUE:PUBKEY[:FLAGS]", _("Add pay-to-pubkey output to TX") + ". " +
             _("Optionally add the \"W\" flag to produce a pay-to-witness-pubkey-hash output") + ". " +
             _("Optionally add the \"S\" flag to wrap the output in a pay-to-script-hash."));
@@ -186,12 +187,19 @@ static CAmount ExtractAndValidateValue(const std::string& strValue)
     return value;
 }
 
+static CTxOut::CRoleChangeMode ExtractAndValidateRoles(const std::string& strRoles)
+{
+    CTxOut::CRoleChangeMode roles;
+    if (!ParseRoles(strRoles, roles))
+        throw std::runtime_error("invalid TX output roles");
+    return roles;
+}
+
 static void MutateTxVersion(CMutableTransaction& tx, const std::string& cmdVal)
 {
     int64_t newVersion = atoi64(cmdVal);
     if (newVersion < 1 || newVersion > CTransaction::MAX_STANDARD_VERSION)
         throw std::runtime_error("Invalid TX version requested");
-
     tx.nVersion = (int) newVersion;
 }
 
@@ -267,10 +275,7 @@ static void MutateTxAddOutAddr(CMutableTransaction& tx, const std::string& strIn
     if (vStrInputParts.size() != 2)
         throw std::runtime_error("TX output missing or too many separators");
 
-    // Extract and validate VALUE
-    CAmount value = ExtractAndValidateValue(vStrInputParts[0]);
-
-    // extract and validate ADDRESS
+    // Extract and validate ADDRESS
     std::string strAddr = vStrInputParts[1];
     CTxDestination destination = DecodeDestination(strAddr);
     if (!IsValidDestination(destination)) {
@@ -278,9 +283,23 @@ static void MutateTxAddOutAddr(CMutableTransaction& tx, const std::string& strIn
     }
     CScript scriptPubKey = GetScriptForDestination(destination);
 
-    // construct TxOut, append to transaction output list
-    CTxOut txout(value, scriptPubKey);
-    tx.vout.push_back(txout);
+    switch (tx.nVersion) {
+        case CTransaction::VERSION_COIN_TRANSFER:
+		    // Extract and validate VALUE
+		    // Construct TxOut, append to transaction output list
+		    tx.vout.push_back(
+                CTxOut(ExtractAndValidateValue(vStrInputParts[0]), scriptPubKey));
+            break;
+        case CTransaction::VERSION_ROLE_CHANGE:
+		    // Extract and validate ROLES
+		    // Construct TxOut, append to transaction output list
+		    tx.vout.push_back(
+                CTxOut(ExtractAndValidateRoles(vStrInputParts[0]), scriptPubKey));
+            break;
+        case CTransaction::VERSION_POLICY_CHANGE:
+            // TODO
+            break;
+    }
 }
 
 static void MutateTxAddOutPubKey(CMutableTransaction& tx, const std::string& strInput)
@@ -291,9 +310,6 @@ static void MutateTxAddOutPubKey(CMutableTransaction& tx, const std::string& str
 
     if (vStrInputParts.size() < 2 || vStrInputParts.size() > 3)
         throw std::runtime_error("TX output missing or too many separators");
-
-    // Extract and validate VALUE
-    CAmount value = ExtractAndValidateValue(vStrInputParts[0]);
 
     // Extract and validate PUBKEY
     CPubKey pubkey(ParseHex(vStrInputParts[1]));
@@ -322,9 +338,23 @@ static void MutateTxAddOutPubKey(CMutableTransaction& tx, const std::string& str
         scriptPubKey = GetScriptForDestination(CScriptID(scriptPubKey));
     }
 
-    // construct TxOut, append to transaction output list
-    CTxOut txout(value, scriptPubKey);
-    tx.vout.push_back(txout);
+    switch (tx.nVersion) {
+        case CTransaction::VERSION_COIN_TRANSFER:
+		    // Extract and validate VALUE
+		    // construct TxOut, append to transaction output list
+		    tx.vout.push_back(
+                CTxOut(ExtractAndValidateValue(vStrInputParts[0]), scriptPubKey));
+            break;
+        case CTransaction::VERSION_ROLE_CHANGE:
+		    // Extract and validate ROLES
+		    // construct TxOut, append to transaction output list
+		    tx.vout.push_back(
+                CTxOut(ExtractAndValidateRoles(vStrInputParts[0]), scriptPubKey));
+            break;
+        case CTransaction::VERSION_POLICY_CHANGE:
+            // TODO
+            break;
+    }
 }
 
 static void MutateTxAddOutMultiSig(CMutableTransaction& tx, const std::string& strInput)
@@ -336,9 +366,6 @@ static void MutateTxAddOutMultiSig(CMutableTransaction& tx, const std::string& s
     // Check that there are enough parameters
     if (vStrInputParts.size()<3)
         throw std::runtime_error("Not enough multisig parameters");
-
-    // Extract and validate VALUE
-    CAmount value = ExtractAndValidateValue(vStrInputParts[0]);
 
     // Extract REQUIRED
     uint32_t required = stoul(vStrInputParts[1]);
@@ -396,25 +423,32 @@ static void MutateTxAddOutMultiSig(CMutableTransaction& tx, const std::string& s
         scriptPubKey = GetScriptForDestination(CScriptID(scriptPubKey));
     }
 
-    // construct TxOut, append to transaction output list
-    CTxOut txout(value, scriptPubKey);
-    tx.vout.push_back(txout);
+    switch (tx.nVersion) {
+        case CTransaction::VERSION_COIN_TRANSFER:
+		    // Extract and validate VALUE
+		    // construct TxOut, append to transaction output list
+		    tx.vout.push_back(
+                CTxOut(ExtractAndValidateValue(vStrInputParts[0]), scriptPubKey));
+            break;
+        case CTransaction::VERSION_ROLE_CHANGE:
+		    // Extract and validate ROLES
+		    // construct TxOut, append to transaction output list
+		    tx.vout.push_back(
+                CTxOut(ExtractAndValidateRoles(vStrInputParts[0]), scriptPubKey));
+            break;
+        case CTransaction::VERSION_POLICY_CHANGE:
+            // TODO
+            break;
+    }
 }
 
 static void MutateTxAddOutData(CMutableTransaction& tx, const std::string& strInput)
 {
-    CAmount value = 0;
-
     // separate [VALUE:]DATA in string
     size_t pos = strInput.find(':');
 
     if (pos==0)
         throw std::runtime_error("TX output value not specified");
-
-    if (pos != std::string::npos) {
-        // Extract and validate VALUE
-        value = ExtractAndValidateValue(strInput.substr(0, pos));
-    }
 
     // extract and validate DATA
     std::string strData = strInput.substr(pos + 1, std::string::npos);
@@ -424,8 +458,23 @@ static void MutateTxAddOutData(CMutableTransaction& tx, const std::string& strIn
 
     std::vector<unsigned char> data = ParseHex(strData);
 
-    CTxOut txout(value, CScript() << OP_RETURN << data);
-    tx.vout.push_back(txout);
+    switch (tx.nVersion) {
+        case CTransaction::VERSION_COIN_TRANSFER:
+            tx.vout.push_back(
+                CTxOut(
+                    CAmount(pos != std::string::npos ? ExtractAndValidateValue(strInput.substr(0, pos)) : 0),
+                    CScript() << OP_RETURN << data));
+            break;
+        case CTransaction::VERSION_ROLE_CHANGE:
+            tx.vout.push_back(
+                CTxOut(
+                    pos != std::string::npos ? ExtractAndValidateRoles(strInput.substr(0, pos)) : CTxOut::CRoleChangeMode({ CTxOut::NULL_ROLE_RESERVED, false, false, false, false, false }),
+                    CScript() << OP_RETURN << data));
+            break;
+        case CTransaction::VERSION_POLICY_CHANGE:
+            // TODO
+            break;
+    }
 }
 
 static void MutateTxAddOutScript(CMutableTransaction& tx, const std::string& strInput)
@@ -435,9 +484,6 @@ static void MutateTxAddOutScript(CMutableTransaction& tx, const std::string& str
     boost::split(vStrInputParts, strInput, boost::is_any_of(":"));
     if (vStrInputParts.size() < 2)
         throw std::runtime_error("TX output missing separator");
-
-    // Extract and validate VALUE
-    CAmount value = ExtractAndValidateValue(vStrInputParts[0]);
 
     // extract and validate script
     std::string strScript = vStrInputParts[1];
@@ -468,9 +514,23 @@ static void MutateTxAddOutScript(CMutableTransaction& tx, const std::string& str
         scriptPubKey = GetScriptForDestination(CScriptID(scriptPubKey));
     }
 
-    // construct TxOut, append to transaction output list
-    CTxOut txout(value, scriptPubKey);
-    tx.vout.push_back(txout);
+    switch (tx.nVersion) {
+        case CTransaction::VERSION_COIN_TRANSFER:
+            // Extract and validate VALUE
+            // construct TxOut, append to transaction output list
+            tx.vout.push_back(
+                CTxOut(ExtractAndValidateValue(vStrInputParts[0]), scriptPubKey));
+            break;
+        case CTransaction::VERSION_ROLE_CHANGE:
+		    // Extract and validate ROLES
+            // construct TxOut, append to transaction output list
+            tx.vout.push_back(
+                CTxOut(ExtractAndValidateRoles(vStrInputParts[0]), scriptPubKey));
+            break;
+        case CTransaction::VERSION_POLICY_CHANGE:
+            // TODO
+            break;
+    }
 }
 
 static void MutateTxDelInput(CMutableTransaction& tx, const std::string& strInIdx)

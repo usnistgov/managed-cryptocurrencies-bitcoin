@@ -125,21 +125,61 @@ public:
     std::string ToString() const;
 };
 
-/** An output of a transaction.  It contains the public key that the next input
+/** A generic output of a transaction.  It contains the public key that the next input
  * must be able to sign with to claim it.
  */
 class CTxOut
 {
 public:
-    CAmount nValue;
+    union
+    {
+        CAmount nValue;
+        struct CRoleChangeMode {
+                uint64_t fRoleA :1;
+                uint64_t fRoleU :1;
+                uint64_t fRoleL :1;
+                uint64_t fRoleC :1;
+                uint64_t fRoleM :1;
+                uint64_t nReserved :59;
+        } nRole;
+        struct CPolicyChangeMode {
+                uint64_t fPrmnt :1;
+                uint64_t nType  :31;
+                uint64_t nParam :32;
+        } nPolicy;
+    };
+
     CScript scriptPubKey;
+
+    enum TxType {
+        COIN_TRANSFER = 0,
+        ROLE_CHANGE   = 1,
+        POLICY_CHANGE = 2,
+    } nTxType;
+
+    static const uint64_t NULL_ROLE_RESERVED = 0b00000000000000000000000000000000000000000000000000000000000;
+    static const uint64_t NULL_POLICY_PARAM  = 0b00000000000000000000000000000000;;
 
     CTxOut()
     {
+        nTxType = COIN_TRANSFER;
         SetNull();
     }
 
     CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn);
+    CTxOut(
+        const bool fRoleMIn,
+        const bool fRoleCIn,
+        const bool fRoleLIn,
+        const bool fRoleUIn,
+        const bool fRoleAIn,
+        CScript scriptPubKeyIn);
+    CTxOut(const CRoleChangeMode& nRolesIn, CScript scriptPubKeyIn);
+    CTxOut(
+        const bool fPermanentIn,
+        const uint32_t nTypeIn,
+        const uint32_t nParamIn,
+        CScript scriptPubKeyIn);
 
     ADD_SERIALIZE_METHODS;
 
@@ -149,16 +189,8 @@ public:
         READWRITE(scriptPubKey);
     }
 
-    void SetNull()
-    {
-        nValue = -1;
-        scriptPubKey.clear();
-    }
-
-    bool IsNull() const
-    {
-        return (nValue == -1);
-    }
+    void SetNull();
+    bool IsNull() const;
 
     friend bool operator==(const CTxOut& a, const CTxOut& b)
     {
@@ -171,7 +203,7 @@ public:
         return !(a == b);
     }
 
-    std::string ToString() const;
+    virtual std::string ToString() const;
 };
 
 struct CMutableTransaction;
@@ -193,70 +225,12 @@ struct CMutableTransaction;
  *   - CTxWitness wit;
  * - uint32_t nLockTime
  */
-template<typename Stream, typename TxType>
-inline void UnserializeTransaction(TxType& tx, Stream& s) {
-    const bool fAllowWitness = !(s.GetVersion() & SERIALIZE_TRANSACTION_NO_WITNESS);
-
-    s >> tx.nVersion;
-    unsigned char flags = 0;
-    tx.vin.clear();
-    tx.vout.clear();
-    /* Try to read the vin. In case the dummy is there, this will be read as an empty vector. */
-    s >> tx.vin;
-    if (tx.vin.size() == 0 && fAllowWitness) {
-        /* We read a dummy or an empty vin. */
-        s >> flags;
-        if (flags != 0) {
-            s >> tx.vin;
-            s >> tx.vout;
-        }
-    } else {
-        /* We read a non-empty vin. Assume a normal vout follows. */
-        s >> tx.vout;
-    }
-    if ((flags & 1) && fAllowWitness) {
-        /* The witness flag is present, and we support witnesses. */
-        flags ^= 1;
-        for (size_t i = 0; i < tx.vin.size(); i++) {
-            s >> tx.vin[i].scriptWitness.stack;
-        }
-    }
-    if (flags) {
-        /* Unknown flag in the serialization */
-        throw std::ios_base::failure("Unknown transaction optional data");
-    }
-    s >> tx.nLockTime;
-}
 
 template<typename Stream, typename TxType>
-inline void SerializeTransaction(const TxType& tx, Stream& s) {
-    const bool fAllowWitness = !(s.GetVersion() & SERIALIZE_TRANSACTION_NO_WITNESS);
+inline void UnserializeTransaction(TxType& tx, Stream& s);
 
-    s << tx.nVersion;
-    unsigned char flags = 0;
-    // Consistency check
-    if (fAllowWitness) {
-        /* Check whether witnesses need to be serialized. */
-        if (tx.HasWitness()) {
-            flags |= 1;
-        }
-    }
-    if (flags) {
-        /* Use extended format in case witnesses are to be serialized. */
-        std::vector<CTxIn> vinDummy;
-        s << vinDummy;
-        s << flags;
-    }
-    s << tx.vin;
-    s << tx.vout;
-    if (flags & 1) {
-        for (size_t i = 0; i < tx.vin.size(); i++) {
-            s << tx.vin[i].scriptWitness.stack;
-        }
-    }
-    s << tx.nLockTime;
-}
-
+template<typename Stream, typename TxType>
+inline void SerializeTransaction(const TxType& tx, Stream& s);
 
 /** The basic transaction that is broadcasted on the network and contained in
  * blocks.  A transaction can contain multiple inputs and outputs.
@@ -265,13 +239,20 @@ class CTransaction
 {
 public:
     // Default transaction version.
-    static const int32_t CURRENT_VERSION=2;
+    static const int32_t CURRENT_VERSION=1944;
 
     // Changing the default transaction version requires a two step process: first
     // adapting relay policy by bumping MAX_STANDARD_VERSION, and then later date
     // bumping the default CURRENT_VERSION at which point both CURRENT_VERSION and
     // MAX_STANDARD_VERSION will be equal.
-    static const int32_t MAX_STANDARD_VERSION=2;
+    static const int32_t MAX_STANDARD_VERSION=1946;
+
+    // The transaction version determines the type of CTxOut output transaction
+    // is stored in the "vout" array of the transaction. "vout" can contain only
+    // one type of CTxOut.
+    static const int32_t VERSION_COIN_TRANSFER = 1944;
+    static const int32_t VERSION_ROLE_CHANGE   = 1945;
+    static const int32_t VERSION_POLICY_CHANGE = 1946;
 
     // The local variables are made const to prevent unintended modification
     // without updating the cached hash value. However, CTransaction is not
@@ -409,5 +390,102 @@ struct CMutableTransaction
 typedef std::shared_ptr<const CTransaction> CTransactionRef;
 static inline CTransactionRef MakeTransactionRef() { return std::make_shared<const CTransaction>(); }
 template <typename Tx> static inline CTransactionRef MakeTransactionRef(Tx&& txIn) { return std::make_shared<const CTransaction>(std::forward<Tx>(txIn)); }
+
+/**
+ * Basic transaction serialization format:
+ * - int32_t nVersion
+ * - std::vector<CTxIn> vin
+ * - std::vector<CTxOut> vout
+ * - uint32_t nLockTime
+ *
+ * Extended transaction serialization format:
+ * - int32_t nVersion
+ * - unsigned char dummy = 0x00
+ * - unsigned char flags (!= 0)
+ * - std::vector<CTxIn> vin
+ * - std::vector<CTxOut> vout
+ * - if (flags & 1):
+ *   - CTxWitness wit;
+ * - uint32_t nLockTime
+ */
+template<typename Stream, typename TxType>
+inline void UnserializeTransaction(TxType& tx, Stream& s) {
+    const bool fAllowWitness = !(s.GetVersion() & SERIALIZE_TRANSACTION_NO_WITNESS);
+
+    s >> tx.nVersion;
+    unsigned char flags = 0;
+    tx.vin.clear();
+    tx.vout.clear();
+    /* Try to read the vin. In case the dummy is there, this will be read as an empty vector. */
+    s >> tx.vin;
+    if (tx.vin.size() == 0 && fAllowWitness) {
+        /* We read a dummy or an empty vin. */
+        s >> flags;
+        if (flags != 0) {
+            s >> tx.vin;
+            s >> tx.vout;
+        }
+    } else {
+        //* We read a non-empty vin. Assume a normal vout follows. */
+        s >> tx.vout;
+    }
+    CTxOut::TxType txtype;
+    switch (tx.nVersion) {
+        case CTransaction::VERSION_ROLE_CHANGE:
+            txtype = CTxOut::ROLE_CHANGE;
+            break;
+        case CTransaction::VERSION_POLICY_CHANGE:
+            txtype = CTxOut::POLICY_CHANGE;
+            break;
+        case CTransaction::VERSION_COIN_TRANSFER:
+        default:
+            txtype = CTxOut::COIN_TRANSFER;
+    }
+    for (size_t i = 0; i < tx.vout.size(); i++) {
+        tx.vout[i].nTxType = txtype;
+    }
+    if ((flags & 1) && fAllowWitness) {
+        /* The witness flag is present, and we support witnesses. */
+        flags ^= 1;
+        for (size_t i = 0; i < tx.vin.size(); i++) {
+            s >> tx.vin[i].scriptWitness.stack;
+        }
+    }
+    if (flags) {
+        /* Unknown flag in the serialization */
+        throw std::ios_base::failure("Unknown transaction optional data");
+    }
+    s >> tx.nLockTime;
+}
+
+template<typename Stream, typename TxType>
+inline void SerializeTransaction(const TxType& tx, Stream& s) {
+    const bool fAllowWitness = !(s.GetVersion() & SERIALIZE_TRANSACTION_NO_WITNESS);
+
+    s << tx.nVersion;
+    unsigned char flags = 0;
+    // Consistency check
+    if (fAllowWitness) {
+        /* Check whether witnesses need to be serialized. */
+        if (tx.HasWitness()) {
+            flags |= 1;
+        }
+    }
+    if (flags) {
+        /* Use extended format in case witnesses are to be serialized. */
+        std::vector<CTxIn> vinDummy;
+        s << vinDummy;
+        s << flags;
+    }
+    s << tx.vin;
+    s << tx.vout;
+    if (flags & 1) {
+        for (size_t i = 0; i < tx.vin.size(); i++) {
+            s << tx.vin[i].scriptWitness.stack;
+        }
+    }
+    s << tx.nLockTime;
+}
+
 
 #endif // BITCOIN_PRIMITIVES_TRANSACTION_H

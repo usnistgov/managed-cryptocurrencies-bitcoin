@@ -167,17 +167,31 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
     if (::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS) * WITNESS_SCALE_FACTOR > MAX_BLOCK_WEIGHT)
         return state.DoS(100, false, REJECT_INVALID, "bad-txns-oversize");
 
-    // Check for negative or overflow output values
-    CAmount nValueOut = 0;
-    for (const auto& txout : tx.vout)
-    {
-        if (txout.nValue < 0)
-            return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-negative");
-        if (txout.nValue > MAX_MONEY)
-            return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-toolarge");
-        nValueOut += txout.nValue;
-        if (!MoneyRange(nValueOut))
-            return state.DoS(100, false, REJECT_INVALID, "bad-txns-txouttotal-toolarge");
+    switch (tx.nVersion) {
+        case CTransaction::VERSION_COIN_TRANSFER:
+        {
+	        // Check for negative or overflow output values
+	        CAmount nValueOut = 0;
+	        for (const auto& txout : tx.vout)
+	        {
+	            if (txout.nValue < 0)
+	                return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-negative");
+	            if (txout.nValue > MAX_MONEY)
+	                return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-toolarge");
+	            nValueOut += txout.nValue;
+	            if (!MoneyRange(nValueOut))
+	                return state.DoS(100, false, REJECT_INVALID, "bad-txns-txouttotal-toolarge");
+	        }
+            break;
+        }
+        case CTransaction::VERSION_ROLE_CHANGE:
+            // TODO
+            break;
+        case CTransaction::VERSION_POLICY_CHANGE:
+            // TODO
+            break;
+        default:
+            return state.DoS(100, false, REJECT_INVALID, "bad-txns-version");
     }
 
     // Check for duplicate inputs - note that this check is slow so we skip it in CheckBlock
@@ -213,38 +227,53 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
                          strprintf("%s: inputs missing/spent", __func__));
     }
 
-    CAmount nValueIn = 0;
-    for (unsigned int i = 0; i < tx.vin.size(); ++i) {
-        const COutPoint &prevout = tx.vin[i].prevout;
-        const Coin& coin = inputs.AccessCoin(prevout);
-        assert(!coin.IsSpent());
-
-        // If prev is coinbase, check that it's matured
-        if (coin.IsCoinBase() && nSpendHeight - coin.nHeight < COINBASE_MATURITY) {
-            return state.Invalid(false,
-                REJECT_INVALID, "bad-txns-premature-spend-of-coinbase",
-                strprintf("tried to spend coinbase at depth %d", nSpendHeight - coin.nHeight));
+    switch (tx.nVersion) {
+        case CTransaction::VERSION_COIN_TRANSFER:
+        {
+		    CAmount nValueIn = 0;
+		    for (unsigned int i = 0; i < tx.vin.size(); ++i) {
+		        const COutPoint &prevout = tx.vin[i].prevout;
+		        const Coin& coin = inputs.AccessCoin(prevout);
+		        assert(!coin.IsSpent());
+		
+		        // If prev is coinbase, check that it's matured
+		        if (coin.IsCoinBase() && nSpendHeight - coin.nHeight < COINBASE_MATURITY) {
+		            return state.Invalid(false,
+		                REJECT_INVALID, "bad-txns-premature-spend-of-coinbase",
+		                strprintf("tried to spend coinbase at depth %d", nSpendHeight - coin.nHeight));
+		        }
+		
+		        // Check for negative or overflow input values
+		        nValueIn += coin.out.nValue;
+		        if (!MoneyRange(coin.out.nValue) || !MoneyRange(nValueIn)) {
+		            return state.DoS(100, false, REJECT_INVALID, "bad-txns-inputvalues-outofrange");
+		        }
+		    }
+		
+		    const CAmount value_out = tx.GetValueOut();
+		    if (nValueIn < value_out) {
+		        return state.DoS(100, false, REJECT_INVALID, "bad-txns-in-belowout", false,
+		            strprintf("value in (%s) < value out (%s)", FormatMoney(nValueIn), FormatMoney(value_out)));
+		    }
+		
+		    // Tally transaction fees
+		    const CAmount txfee_aux = nValueIn - value_out;
+		    if (!MoneyRange(txfee_aux)) {
+		        return state.DoS(100, false, REJECT_INVALID, "bad-txns-fee-outofrange");
+		    }
+		
+		    txfee = txfee_aux;
+		    return true;
         }
-
-        // Check for negative or overflow input values
-        nValueIn += coin.out.nValue;
-        if (!MoneyRange(coin.out.nValue) || !MoneyRange(nValueIn)) {
-            return state.DoS(100, false, REJECT_INVALID, "bad-txns-inputvalues-outofrange");
-        }
+        case CTransaction::VERSION_ROLE_CHANGE:
+            // TODO
+		    txfee = 0;
+            return true;
+        case CTransaction::VERSION_POLICY_CHANGE:
+            // TODO
+		    txfee = 0;
+            return true;
+        default:
+            return false;
     }
-
-    const CAmount value_out = tx.GetValueOut();
-    if (nValueIn < value_out) {
-        return state.DoS(100, false, REJECT_INVALID, "bad-txns-in-belowout", false,
-            strprintf("value in (%s) < value out (%s)", FormatMoney(nValueIn), FormatMoney(value_out)));
-    }
-
-    // Tally transaction fees
-    const CAmount txfee_aux = nValueIn - value_out;
-    if (!MoneyRange(txfee_aux)) {
-        return state.DoS(100, false, REJECT_INVALID, "bad-txns-fee-outofrange");
-    }
-
-    txfee = txfee_aux;
-    return true;
 }

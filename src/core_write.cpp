@@ -26,6 +26,48 @@ UniValue ValueFromAmount(const CAmount& amount)
             strprintf("%s%d.%08d", sign ? "-" : "", quotient, remainder));
 }
 
+UniValue ValueFromRoles(const bool roleM, const bool roleC, const bool roleL, const bool roleU, const bool roleA)
+{
+    return UniValue(UniValue::VSTR,
+               strprintf("%c%c%c%c%c",
+                   roleM ? 'M' : '.',
+                   roleC ? 'C' : '.',
+                   roleL ? 'L' : '.',
+                   roleU ? 'U' : '.',
+                   roleA ? 'A' : '.'));
+}
+
+UniValue ValueFromPolicy(const bool perm, const uint32_t mode, const uint32_t param)
+{
+    return UniValue(UniValue::VSTR,
+               strprintf("mode=%u param=%u %s", // FIXME
+                   mode, param,
+                   perm ? "permanent" : "provisional"));
+}
+
+UniValue ValueFromTxOut(const CTxOut& txout, const int32_t txversion) // TODO: Remoev txversion
+{
+    UniValue out(UniValue::VOBJ);
+
+    switch(txversion) {
+        case CTransaction::VERSION_COIN_TRANSFER:
+            assert(txout.nTxType == CTxOut::COIN_TRANSFER); // TODO: Remove when tests succeed
+            out.pushKV("value", ValueFromAmount(txout.nValue));
+            break;
+        case CTransaction::VERSION_ROLE_CHANGE:
+            assert(txout.nTxType == CTxOut::ROLE_CHANGE); // TODO: Remove when tests succeed
+            out.pushKV("roles", ValueFromRoles(txout.nRole.fRoleM, txout.nRole.fRoleC, txout.nRole.fRoleL, txout.nRole.fRoleU, txout.nRole.fRoleA));
+            break;
+        case CTransaction::VERSION_POLICY_CHANGE:
+            assert(txout.nTxType == CTxOut::POLICY_CHANGE); // TODO: Remove when tests succeed
+            out.pushKV("value", ValueFromPolicy(txout.nPolicy.fPrmnt, txout.nPolicy.nType, txout.nPolicy.nParam));
+            break;
+        default:
+            LogPrint(BCLog::EXPERIMENT, "Unsupported transaction version: %d / CTxOut type: %u\n", txversion, txout.nTxType); // FIXME
+    }
+    return out;
+}
+
 std::string FormatScript(const CScript& script)
 {
     std::string ret;
@@ -193,9 +235,8 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
     for (unsigned int i = 0; i < tx.vout.size(); i++) {
         const CTxOut& txout = tx.vout[i];
 
-        UniValue out(UniValue::VOBJ);
+        UniValue out = ValueFromTxOut(txout, tx.nVersion); // TODO: remove tx.nVersion
 
-        out.pushKV("value", ValueFromAmount(txout.nValue));
         out.pushKV("n", (int64_t)i);
 
         UniValue o(UniValue::VOBJ);
