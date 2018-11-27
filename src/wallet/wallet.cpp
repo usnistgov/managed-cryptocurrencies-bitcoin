@@ -604,6 +604,14 @@ void CWallet::AddToSpends(const uint256& wtxid)
     if (thisTx.IsCoinBase()) // Coinbases don't spend anything!
         return;
 
+    // Policy or role change transaction don't spend anything
+    auto thisTxOut = CInputCoin(&thisTx, 0).txout;
+    auto thisTxOutType = thisTxOut.nTxType;
+
+    if (thisTxOutType == CTxOut::POLICY_CHANGE || thisTxOutType == CTxOut::ROLE_CHANGE) {
+        return;
+    }
+
     for (const CTxIn& txin : thisTx.tx->vin)
         AddToSpends(txin.prevout, wtxid);
 }
