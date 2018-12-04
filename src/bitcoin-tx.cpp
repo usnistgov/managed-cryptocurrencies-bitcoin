@@ -80,7 +80,7 @@ static int AppInitRawTx(int argc, char* argv[])
         strUsage += HelpMessageOpt("nversion=N", _("Set TX version to N"));
         strUsage += HelpMessageOpt("replaceable(=N)", _("Set RBF opt-in sequence number for input N (if not provided, opt-in all available inputs)"));
         strUsage += HelpMessageOpt("outaddr=VALUE:ADDRESS", _("Add address-based output to TX"));
-        strUsage += HelpMessageOpt("outaddr=ROLES:ADDRESS", _("Add address-based output to TX") + ". " + _("Roles have to be MCLUA in that order. Replace a role by '.' (dot) to deactivate/not activate a role."));
+        strUsage += HelpMessageOpt("outaddr=ROLES:ADDRESS", _("Add address-based output to TX") + ". " + _("Roles have to be MCLRAD in that order. Replace a role by '.' (dot) to deactivate/not activate a role."));
         strUsage += HelpMessageOpt("outpubkey=VALUE:PUBKEY[:FLAGS]", _("Add pay-to-pubkey output to TX") + ". " +
             _("Optionally add the \"W\" flag to produce a pay-to-witness-pubkey-hash output") + ". " +
             _("Optionally add the \"S\" flag to wrap the output in a pay-to-script-hash."));

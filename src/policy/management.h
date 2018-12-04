@@ -31,8 +31,9 @@ public:
         bool fRoleMActive               = true;
         bool fRoleCActive               = true;
         bool fRoleLActive               = true;
-        bool fRoleUActive               = true;
+        bool fRoleRActive               = true;
         bool fRoleAActive               = true;
+        bool fRoleDActive               = true;
         bool fRoleLCanMoveCoin          = true;
         CAmount nRoleCCoinCreationLimit = 0;
         bool fBlockRewardAuto           = true;
@@ -58,8 +59,9 @@ public:
       role.fRoleM = activePolicy.fRoleMActive;
       role.fRoleC = activePolicy.fRoleCActive;
       role.fRoleL = activePolicy.fRoleLActive;
-      role.fRoleU = activePolicy.fRoleUActive;
+      role.fRoleR = activePolicy.fRoleRActive;
       role.fRoleA = activePolicy.fRoleAActive;
+      role.fRoleD = activePolicy.fRoleDActive;
       role.nReserved = CTxOut::NULL_ROLE_RESERVED;
       return role;
     }

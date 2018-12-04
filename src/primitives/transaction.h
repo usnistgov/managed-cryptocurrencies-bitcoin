@@ -135,12 +135,13 @@ public:
     {
         CAmount nValue;
         struct CRoleChangeMode {
+                uint64_t fRoleD :1;
                 uint64_t fRoleA :1;
-                uint64_t fRoleU :1;
+                uint64_t fRoleR :1;
                 uint64_t fRoleL :1;
                 uint64_t fRoleC :1;
                 uint64_t fRoleM :1;
-                uint64_t nReserved :59;
+                uint64_t nReserved :58;
         } nRole;
         struct CPolicyChangeMode {
                 uint64_t fPrmnt :1;
@@ -157,7 +158,7 @@ public:
         POLICY_CHANGE = 2,
     } nTxType;
 
-    static const uint64_t NULL_ROLE_RESERVED = 0b00000000000000000000000000000000000000000000000000000000000;
+    static const uint64_t NULL_ROLE_RESERVED = 0b0000000000000000000000000000000000000000000000000000000000;
     static const uint64_t NULL_POLICY_PARAM  = 0b00000000000000000000000000000000;;
 
     CTxOut()
@@ -171,8 +172,9 @@ public:
         const bool fRoleMIn,
         const bool fRoleCIn,
         const bool fRoleLIn,
-        const bool fRoleUIn,
+        const bool fRoleRIn,
         const bool fRoleAIn,
+        const bool fRoleDIn,
         CScript scriptPubKeyIn);
     CTxOut(const CRoleChangeMode& nRolesIn, CScript scriptPubKeyIn);
     CTxOut(

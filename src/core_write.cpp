@@ -26,15 +26,16 @@ UniValue ValueFromAmount(const CAmount& amount)
             strprintf("%s%d.%08d", sign ? "-" : "", quotient, remainder));
 }
 
-UniValue ValueFromRoles(const bool roleM, const bool roleC, const bool roleL, const bool roleU, const bool roleA)
+UniValue ValueFromRoles(const bool roleM, const bool roleC, const bool roleL, const bool roleR, const bool roleA, const bool roleD)
 {
     return UniValue(UniValue::VSTR,
                strprintf("%c%c%c%c%c",
                    roleM ? 'M' : '.',
                    roleC ? 'C' : '.',
                    roleL ? 'L' : '.',
-                   roleU ? 'U' : '.',
-                   roleA ? 'A' : '.'));
+                   roleR ? 'R' : '.',
+                   roleA ? 'A' : '.',
+                   roleD ? 'D' : '.'));
 }
 
 UniValue ValueFromPolicy(const bool perm, const uint32_t mode, const uint32_t param)
@@ -56,7 +57,7 @@ UniValue ValueFromTxOut(const CTxOut& txout, const int32_t txversion) // TODO: R
             break;
         case CTransaction::VERSION_ROLE_CHANGE:
             assert(txout.nTxType == CTxOut::ROLE_CHANGE); // TODO: Remove when tests succeed
-            out.pushKV("roles", ValueFromRoles(txout.nRole.fRoleM, txout.nRole.fRoleC, txout.nRole.fRoleL, txout.nRole.fRoleU, txout.nRole.fRoleA));
+            out.pushKV("roles", ValueFromRoles(txout.nRole.fRoleM, txout.nRole.fRoleC, txout.nRole.fRoleL, txout.nRole.fRoleR, txout.nRole.fRoleA, txout.nRole.fRoleD));
             break;
         case CTransaction::VERSION_POLICY_CHANGE:
             assert(txout.nTxType == CTxOut::POLICY_CHANGE); // TODO: Remove when tests succeed

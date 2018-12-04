@@ -89,7 +89,7 @@ bool ParseRoles(const char* pszIn, CTxOut::CRoleChangeMode& nRet)
 
     while (isspace(*p))
         p++;
-    if (strlen(p) < 5)
+    if (strlen(p) < 6)
         return false;
     if (*p == 'M' || *p == '.')
         roles.fRoleM = (*p++ == 'M');
@@ -103,12 +103,16 @@ bool ParseRoles(const char* pszIn, CTxOut::CRoleChangeMode& nRet)
         roles.fRoleL = (*p++ == 'L');
     else
         return false;
-    if (*p == 'U' || *p == '.')
-        roles.fRoleU = (*p++ == 'U');
+    if (*p == 'R' || *p == '.')
+        roles.fRoleR = (*p++ == 'R');
     else
         return false;
     if (*p == 'A' || *p == '.')
         roles.fRoleA = (*p++ == 'A');
+    else
+        return false;
+    if (*p == 'D' || *p == '.')
+        roles.fRoleD = (*p++ == 'D');
     else
         return false;
     roles.nReserved = CTxOut::NULL_ROLE_RESERVED;

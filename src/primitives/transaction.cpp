@@ -56,16 +56,18 @@ CTxOut::CTxOut(
         const bool fRoleMIn,
         const bool fRoleCIn,
         const bool fRoleLIn,
-        const bool fRoleUIn,
+        const bool fRoleRIn,
         const bool fRoleAIn,
+        const bool fRoleDIn,
         CScript scriptPubKeyIn)
 {
     nTxType = ROLE_CHANGE;
     nRole.fRoleM = fRoleMIn;
     nRole.fRoleC = fRoleCIn;
     nRole.fRoleL = fRoleLIn;
-    nRole.fRoleU = fRoleUIn;
+    nRole.fRoleR = fRoleRIn;
     nRole.fRoleA = fRoleAIn;
+    nRole.fRoleD = fRoleDIn;
     nRole.nReserved = NULL_ROLE_RESERVED;
     scriptPubKey = scriptPubKeyIn;
 }
@@ -98,8 +100,9 @@ void CTxOut::SetNull()
             nRole.fRoleM = false;
             nRole.fRoleC = false;
             nRole.fRoleL = false;
-            nRole.fRoleU = false;
+            nRole.fRoleR = false;
             nRole.fRoleA = false;
+            nRole.fRoleD = false;
             nRole.nReserved = CTxOut::NULL_ROLE_RESERVED;
             break;
         case POLICY_CHANGE:
@@ -121,7 +124,7 @@ bool CTxOut::IsNull() const
         case COIN_TRANSFER:
             return (nValue == -1);
         case ROLE_CHANGE:
-            return !nRole.fRoleM && !nRole.fRoleC && !nRole.fRoleL && !nRole.fRoleU && !nRole.fRoleA && (nRole.nReserved == NULL_ROLE_RESERVED);
+            return !nRole.fRoleM && !nRole.fRoleC && !nRole.fRoleL && !nRole.fRoleR && !nRole.fRoleA && !nRole.fRoleD && (nRole.nReserved == NULL_ROLE_RESERVED);
         case POLICY_CHANGE:
             return !nPolicy.fPrmnt && (nPolicy.nType == CManagementPolicy::NOOP) && (nPolicy.nParam == NULL_POLICY_PARAM);
         default:
@@ -140,8 +143,9 @@ std::string CTxOut::ToString() const
                     nRole.fRoleM ? 'M' : '.',
                     nRole.fRoleC ? 'C' : '.',
                     nRole.fRoleL ? 'L' : '.',
-                    nRole.fRoleU ? 'U' : '.',
+                    nRole.fRoleR ? 'R' : '.',
                     nRole.fRoleA ? 'A' : '.',
+                    nRole.fRoleD ? 'D' : '.',
                     HexStr(scriptPubKey).substr(0, 30));
         case POLICY_CHANGE:
             return strprintf("CTxOut(fPrmnt=%s, nType=%u, nParam=%u, scriptPubKey=%s)",

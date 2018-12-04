@@ -39,8 +39,9 @@ static CBlock CreateGenesisBlock(const CScript& managerOutputScript, uint32_t nT
             policy.GetActivePolicy().fRoleMActive,
             policy.GetActivePolicy().fRoleCActive,
             policy.GetActivePolicy().fRoleLActive,
-            policy.GetActivePolicy().fRoleUActive,
+            policy.GetActivePolicy().fRoleRActive,
             policy.GetActivePolicy().fRoleAActive,
+            policy.GetActivePolicy().fRoleDActive,
             managerOutputScript);
 
     // Build the genesis block
@@ -354,10 +355,10 @@ public:
         nDefaultPort = 18444;
         nPruneAfterHeight = 1000;
 
-        uint256 hashGenesisBlock = uint256S("0x469fd2d42cc2a2d34b997737fcdd33cdd780f67b2885e6b581872ef29e753c44");
-        uint256 hashMerkleRoot   = uint256S("0x86e92ece40c6f4fa479d46d078badceffa31921b93ae7fa8a3cc92cd7feb94b1");
+        uint256 hashGenesisBlock = uint256S("0x1a692b92be40fb81d42d7c094e813d8544d1ee3d4c23bb52fce4c364f5ea80df");
+        uint256 hashMerkleRoot   = uint256S("0x3a5a72e82b4e453a704dec11f5b99052b8eff5c6886e62881fb5aa4dfeab3e10");
 
-        genesis = CreateTestGenesisBlock(1538956800, 0, 0x207fffff, 1, GetManagementPolicy());
+        genesis = CreateTestGenesisBlock(1538956800, 1, 0x207fffff, 1, GetManagementPolicy());
         consensus.hashGenesisBlock = genesis.GetHash();
         if (consensus.hashGenesisBlock != hashGenesisBlock || genesis.hashMerkleRoot != hashMerkleRoot) {
             fprintf(stderr, "Regtest genesis block needs to be re-mined:\n");
