@@ -595,9 +595,23 @@ static bool AcceptToMemoryPoolWorker(const CChainParams& chainparams, CTxMemPool
     }
 
     // Check for conflicts with in-memory transactions
+    CCoinsView dummy;
+    CCoinsViewCache view(&dummy);
+
+    CCoinsViewMemPool viewMemPool(pcoinsTip.get(), pool);
+    view.SetBackend(viewMemPool);
+
+    Coin coin;
+
     std::set<uint256> setConflicts;
     for (const CTxIn &txin : tx.vin)
     {
+        // Role transactions can be used multiple times, so skip them
+        if (view.GetCoin(txin.prevout, coin)) {
+            if (coin.out.nTxType == CTxOut::ROLE_CHANGE)
+                continue;
+        }
+
         auto itConflicting = pool.mapNextTx.find(txin.prevout);
         if (itConflicting != pool.mapNextTx.end())
         {
@@ -638,12 +652,7 @@ static bool AcceptToMemoryPoolWorker(const CChainParams& chainparams, CTxMemPool
     }
 
     {
-        CCoinsView dummy;
-        CCoinsViewCache view(&dummy);
-
         LockPoints lp;
-        CCoinsViewMemPool viewMemPool(pcoinsTip.get(), pool);
-        view.SetBackend(viewMemPool);
 
         // do all inputs exist?
         for (const CTxIn txin : tx.vin) {
