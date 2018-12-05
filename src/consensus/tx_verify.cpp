@@ -170,18 +170,18 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
     switch (tx.nVersion) {
         case CTransaction::VERSION_COIN_TRANSFER:
         {
-		// Check for negative or overflow output values
-		CAmount nValueOut = 0;
-		for (const auto& txout : tx.vout)
-		{
-		    if (txout.nValue < 0)
-			return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-negative");
-		    if (txout.nValue > MAX_MONEY)
-			return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-toolarge");
-		    nValueOut += txout.nValue;
-		    if (!MoneyRange(nValueOut))
-			return state.DoS(100, false, REJECT_INVALID, "bad-txns-txouttotal-toolarge");
-		}
+	        // Check for negative or overflow output values
+	        CAmount nValueOut = 0;
+	        for (const auto& txout : tx.vout)
+	        {
+	            if (txout.nValue < 0)
+	                return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-negative");
+	            if (txout.nValue > MAX_MONEY)
+	                return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-toolarge");
+	            nValueOut += txout.nValue;
+	            if (!MoneyRange(nValueOut))
+	                return state.DoS(100, false, REJECT_INVALID, "bad-txns-txouttotal-toolarge");
+	        }
             break;
         }
         case CTransaction::VERSION_ROLE_CHANGE:
@@ -225,6 +225,81 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
     return true;
 }
 
+/**
+ * Check authorization to execute a given transaction
+ *
+ * @param nVersion
+ * @param vinAuth
+ * @param txVouts
+ * @return
+ */
+bool isAuthorized(int32_t nVersion, const CTxOut& vinAuth, const std::vector<CTxOut> txVouts) {
+    switch(nVersion) {
+        case CTransaction::VERSION_COIN_TRANSFER:
+            // TODO
+            break;
+        case CTransaction::VERSION_ROLE_CHANGE:
+            // Managers can perform any role change
+            if(vinAuth.nRole.fRoleM) {
+                return true;
+            }
+
+            // Otherwise, check each vout to ensure correct vin role
+            for(const CTxOut& vout: txVouts) {
+                if (!vout.nRole.fRoleR) {
+                    if(vinAuth.nRole.fRoleA) {
+                        return false;
+                    }
+                } else if (vout.nRole.fRoleD) {
+                    if(!vinAuth.nRole.fRoleL) {
+                        return false;
+                    }
+                } else {
+                    if(!vinAuth.nRole.fRoleM) {
+                        return false;
+                    }
+                }
+            }
+            break;
+        case CTransaction::VERSION_ROLE_CHANGE_FEE:
+            // Managers can perform any role change
+            if(vinAuth.nRole.fRoleM) {
+                return true;
+            }
+
+            // Otherwise, check each vout to ensure correct vin role
+            // Note: the last vout correspond to the change and should not be checked
+            for(unsigned int i = 0; i < txVouts.size() - 1; ++i) {
+                const CTxOut& vout = txVouts[i];
+
+                if (!vout.nRole.fRoleR) {
+                    if(vinAuth.nRole.fRoleA) {
+                        return false;
+                    }
+                } else if (vout.nRole.fRoleD) {
+                    if(!vinAuth.nRole.fRoleL) {
+                        return false;
+                    }
+                } else {
+                    if(!vinAuth.nRole.fRoleM) {
+                        return false;
+                    }
+                }
+            }
+            break;
+        case CTransaction::VERSION_POLICY_CHANGE:
+            // TODO
+            break;
+        case CTransaction::VERSION_POLICY_CHANGE_FEE:
+            // TODO
+            break;
+        default:
+            return false;
+    }
+
+    return true;
+}
+
 bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoinsViewCache& inputs, int nSpendHeight, CAmount& txfee)
 {
     // are the actual inputs available?
@@ -235,13 +310,19 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
 
     // Assert that the first vin points to a role change UTXO
     if (tx.vin.size() > 0) {
-	const COutPoint &prevout = tx.vin[0].prevout;
-	const Coin& coin = inputs.AccessCoin(prevout);
-	if (coin.out.nTxType != CTxOut::ROLE_CHANGE) {
-	    return state.Invalid(false, REJECT_INVALID, "bad-txns-first-vin-not-roles");
+        const COutPoint &prevout = tx.vin[0].prevout;
+        const Coin& coin = inputs.AccessCoin(prevout);
+
+        if (coin.out.nTxType != CTxOut::ROLE_CHANGE) {
+            return state.Invalid(false, REJECT_INVALID, "bad-txns-first-vin-not-roles");
         }
-	// FIXME Add further validation
-	// FIXME Also get the address from this vin and check if it's the same in the following vins
+
+        if(!isAuthorized(tx.nVersion, coin.out, tx.vout)) {
+            return state.Invalid(false, REJECT_INVALID, "bad-txns-not-authorized");
+        }
+
+        // FIXME Add further validation
+        // FIXME Get the address from this vin and check if it's the same in the following vins
     }
 
     switch (tx.nVersion)
@@ -250,53 +331,52 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
         case CTransaction::VERSION_POLICY_CHANGE:
             // Free role/policy change transactions don't require a fee
             // FIXME Make sure that the current policy allows for these transaction, but perhaps elsewhere
-	    txfee = 0;
+	        txfee = 0;
             return true;
-
         case CTransaction::VERSION_COIN_TRANSFER:
         case CTransaction::VERSION_ROLE_CHANGE_FEE:
         case CTransaction::VERSION_POLICY_CHANGE_FEE:
         {
-	    CAmount nValueIn = 0;
+            CAmount nValueIn = 0;
 
-	    // Skip the first vin since it's a role change UTXO
-	    // Collect fee from the following vins
-	    for (unsigned int i = 1; i < tx.vin.size(); ++i) {
-		const COutPoint &prevout = tx.vin[i].prevout;
-		const Coin& coin = inputs.AccessCoin(prevout);
-		if (coin.out.nTxType != CTxOut::COIN_TRANSFER) {
-		    return state.Invalid(false, REJECT_INVALID, "bad-txns-following-vin-not-coins");
-	        }
-		assert(!coin.IsSpent());
+            // Skip the first vin since it's a role change UTXO
+            // Collect fee from the following vins
+            for (unsigned int i = 1; i < tx.vin.size(); ++i) {
+                const COutPoint &prevout = tx.vin[i].prevout;
+                const Coin& coin = inputs.AccessCoin(prevout);
+                if (coin.out.nTxType != CTxOut::COIN_TRANSFER) {
+                    return state.Invalid(false, REJECT_INVALID, "bad-txns-following-vin-not-coins");
+                }
+                assert(!coin.IsSpent());
 
-		// If prev is coinbase, check that it's matured
-		if (coin.IsCoinBase() && nSpendHeight - coin.nHeight < COINBASE_MATURITY) {
-		    return state.Invalid(false,
-			REJECT_INVALID, "bad-txns-premature-spend-of-coinbase",
-			strprintf("tried to spend coinbase at depth %d", nSpendHeight - coin.nHeight));
-		}
-	
-		// Check for negative or overflow input values
-		nValueIn += coin.out.nValue;
-		if (!MoneyRange(coin.out.nValue) || !MoneyRange(nValueIn)) {
-		    return state.DoS(100, false, REJECT_INVALID, "bad-txns-inputvalues-outofrange");
-		}
-	    }
-	
-	    const CAmount value_out = tx.GetValueOut();
-	    if (nValueIn < value_out) {
-		return state.DoS(100, false, REJECT_INVALID, "bad-txns-in-belowout", false,
-		    strprintf("value in (%s) < value out (%s)", FormatMoney(nValueIn), FormatMoney(value_out)));
-	    }
-	
-	    // Tally transaction fees
-	    const CAmount txfee_aux = nValueIn - value_out;
-	    if (!MoneyRange(txfee_aux)) {
-		return state.DoS(100, false, REJECT_INVALID, "bad-txns-fee-outofrange");
-	    }
-	
-	    txfee = txfee_aux;
-	    return true;
+                // If prev is coinbase, check that it's matured
+                if (coin.IsCoinBase() && nSpendHeight - coin.nHeight < COINBASE_MATURITY) {
+                    return state.Invalid(false,
+                    REJECT_INVALID, "bad-txns-premature-spend-of-coinbase",
+                    strprintf("tried to spend coinbase at depth %d", nSpendHeight - coin.nHeight));
+                }
+
+                // Check for negative or overflow input values
+                nValueIn += coin.out.nValue;
+                if (!MoneyRange(coin.out.nValue) || !MoneyRange(nValueIn)) {
+                    return state.DoS(100, false, REJECT_INVALID, "bad-txns-inputvalues-outofrange");
+                }
+            }
+
+            const CAmount value_out = tx.GetValueOut();
+            if (nValueIn < value_out) {
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-in-belowout", false,
+                        strprintf("value in (%s) < value out (%s)", FormatMoney(nValueIn), FormatMoney(value_out)));
+            }
+
+            // Tally transaction fees
+            const CAmount txfee_aux = nValueIn - value_out;
+            if (!MoneyRange(txfee_aux)) {
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-fee-outofrange");
+            }
+
+            txfee = txfee_aux;
+            return true;
         }
         default:
             return false;
