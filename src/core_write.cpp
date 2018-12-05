@@ -29,7 +29,7 @@ UniValue ValueFromAmount(const CAmount& amount)
 UniValue ValueFromRoles(const bool roleM, const bool roleC, const bool roleL, const bool roleR, const bool roleA, const bool roleD)
 {
     return UniValue(UniValue::VSTR,
-               strprintf("%c%c%c%c%c",
+               strprintf("%c%c%c%c%c%c",
                    roleM ? 'M' : '.',
                    roleC ? 'C' : '.',
                    roleL ? 'L' : '.',

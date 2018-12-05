@@ -139,7 +139,7 @@ std::string CTxOut::ToString() const
         case COIN_TRANSFER:
             return strprintf("CTxOut(nValue=%d.%08d, scriptPubKey=%s)", nValue / COIN, nValue % COIN, HexStr(scriptPubKey).substr(0, 30));
         case ROLE_CHANGE:
-            return strprintf("CTxOut(nRole=%c%c%c%c%c, scriptPubKey=%s)",
+            return strprintf("CTxOut(nRole=%c%c%c%c%c%c, scriptPubKey=%s)",
                     nRole.fRoleM ? 'M' : '.',
                     nRole.fRoleC ? 'C' : '.',
                     nRole.fRoleL ? 'L' : '.',
