@@ -285,18 +285,35 @@ static void MutateTxAddOutAddr(CMutableTransaction& tx, const std::string& strIn
 
     switch (tx.nVersion) {
         case CTransaction::VERSION_COIN_TRANSFER:
-		    // Extract and validate VALUE
-		    // Construct TxOut, append to transaction output list
-		    tx.vout.push_back(
-                CTxOut(ExtractAndValidateValue(vStrInputParts[0]), scriptPubKey));
+            // Extract and validate VALUE
+            // Construct TxOut, append to transaction output list
+            tx.vout.push_back(
+		CTxOut(ExtractAndValidateValue(vStrInputParts[0]), scriptPubKey));
             break;
         case CTransaction::VERSION_ROLE_CHANGE:
-		    // Extract and validate ROLES
-		    // Construct TxOut, append to transaction output list
-		    tx.vout.push_back(
+            // Extract and validate ROLES
+            // Construct TxOut, append to transaction output list
+            tx.vout.push_back(
                 CTxOut(ExtractAndValidateRoles(vStrInputParts[0]), scriptPubKey));
             break;
+        case CTransaction::VERSION_ROLE_CHANGE_FEE:
+	    // If this is the first TxOut, then it has to be a change address
+	    if (tx.vout.empty()) {
+                // Extract and validate VALUE
+                // Construct TxOut, append to transaction output list
+                tx.vout.push_back(
+		    CTxOut(ExtractAndValidateValue(vStrInputParts[0]), scriptPubKey));
+	    }
+	    // Otherwise, it has to be a role change
+	    else {
+                // Extract and validate ROLES
+                // Construct TxOut, append to transaction output list
+                tx.vout.push_back(
+                    CTxOut(ExtractAndValidateRoles(vStrInputParts[0]), scriptPubKey));
+	    }
+	    break;
         case CTransaction::VERSION_POLICY_CHANGE:
+        case CTransaction::VERSION_POLICY_CHANGE_FEE:
             // TODO
             break;
     }
@@ -340,18 +357,35 @@ static void MutateTxAddOutPubKey(CMutableTransaction& tx, const std::string& str
 
     switch (tx.nVersion) {
         case CTransaction::VERSION_COIN_TRANSFER:
-		    // Extract and validate VALUE
-		    // construct TxOut, append to transaction output list
-		    tx.vout.push_back(
-                CTxOut(ExtractAndValidateValue(vStrInputParts[0]), scriptPubKey));
+            // Extract and validate VALUE
+            // Construct TxOut, append to transaction output list
+            tx.vout.push_back(
+		CTxOut(ExtractAndValidateValue(vStrInputParts[0]), scriptPubKey));
             break;
         case CTransaction::VERSION_ROLE_CHANGE:
-		    // Extract and validate ROLES
-		    // construct TxOut, append to transaction output list
-		    tx.vout.push_back(
+            // Extract and validate ROLES
+            // Construct TxOut, append to transaction output list
+            tx.vout.push_back(
                 CTxOut(ExtractAndValidateRoles(vStrInputParts[0]), scriptPubKey));
             break;
+        case CTransaction::VERSION_ROLE_CHANGE_FEE:
+	    // If this is the first TxOut, then it has to be a change address
+	    if (tx.vout.empty()) {
+                // Extract and validate VALUE
+                // Construct TxOut, append to transaction output list
+                tx.vout.push_back(
+		    CTxOut(ExtractAndValidateValue(vStrInputParts[0]), scriptPubKey));
+	    }
+	    // Otherwise, it has to be a role change
+	    else {
+                // Extract and validate ROLES
+                // Construct TxOut, append to transaction output list
+                tx.vout.push_back(
+                    CTxOut(ExtractAndValidateRoles(vStrInputParts[0]), scriptPubKey));
+	    }
+	    break;
         case CTransaction::VERSION_POLICY_CHANGE:
+        case CTransaction::VERSION_POLICY_CHANGE_FEE:
             // TODO
             break;
     }
@@ -425,18 +459,35 @@ static void MutateTxAddOutMultiSig(CMutableTransaction& tx, const std::string& s
 
     switch (tx.nVersion) {
         case CTransaction::VERSION_COIN_TRANSFER:
-		    // Extract and validate VALUE
-		    // construct TxOut, append to transaction output list
-		    tx.vout.push_back(
-                CTxOut(ExtractAndValidateValue(vStrInputParts[0]), scriptPubKey));
+            // Extract and validate VALUE
+            // Construct TxOut, append to transaction output list
+            tx.vout.push_back(
+		CTxOut(ExtractAndValidateValue(vStrInputParts[0]), scriptPubKey));
             break;
         case CTransaction::VERSION_ROLE_CHANGE:
-		    // Extract and validate ROLES
-		    // construct TxOut, append to transaction output list
-		    tx.vout.push_back(
+            // Extract and validate ROLES
+            // Construct TxOut, append to transaction output list
+            tx.vout.push_back(
                 CTxOut(ExtractAndValidateRoles(vStrInputParts[0]), scriptPubKey));
             break;
+        case CTransaction::VERSION_ROLE_CHANGE_FEE:
+	    // If this is the first TxOut, then it has to be a change address
+	    if (tx.vout.empty()) {
+                // Extract and validate VALUE
+                // Construct TxOut, append to transaction output list
+                tx.vout.push_back(
+		    CTxOut(ExtractAndValidateValue(vStrInputParts[0]), scriptPubKey));
+	    }
+	    // Otherwise, it has to be a role change
+	    else {
+                // Extract and validate ROLES
+                // Construct TxOut, append to transaction output list
+                tx.vout.push_back(
+                    CTxOut(ExtractAndValidateRoles(vStrInputParts[0]), scriptPubKey));
+	    }
+	    break;
         case CTransaction::VERSION_POLICY_CHANGE:
+        case CTransaction::VERSION_POLICY_CHANGE_FEE:
             // TODO
             break;
     }
@@ -460,18 +511,43 @@ static void MutateTxAddOutData(CMutableTransaction& tx, const std::string& strIn
 
     switch (tx.nVersion) {
         case CTransaction::VERSION_COIN_TRANSFER:
+            // Extract and validate VALUE
+            // Construct TxOut, append to transaction output list
             tx.vout.push_back(
                 CTxOut(
                     CAmount(pos != std::string::npos ? ExtractAndValidateValue(strInput.substr(0, pos)) : 0),
                     CScript() << OP_RETURN << data));
             break;
         case CTransaction::VERSION_ROLE_CHANGE:
+            // Extract and validate ROLES
+            // Construct TxOut, append to transaction output list
             tx.vout.push_back(
                 CTxOut(
                     pos != std::string::npos ? ExtractAndValidateRoles(strInput.substr(0, pos)) : CTxOut::CRoleChangeMode({ CTxOut::NULL_ROLE_RESERVED, false, false, false, false, false }),
                     CScript() << OP_RETURN << data));
             break;
+        case CTransaction::VERSION_ROLE_CHANGE_FEE:
+	    // If this is the first TxOut, then it has to be a change address
+	    if (tx.vout.empty()) {
+                // Extract and validate VALUE
+                // Construct TxOut, append to transaction output list
+                tx.vout.push_back(
+                    CTxOut(
+                        CAmount(pos != std::string::npos ? ExtractAndValidateValue(strInput.substr(0, pos)) : 0),
+                        CScript() << OP_RETURN << data));
+	    }
+	    // Otherwise, it has to be a role change
+	    else {
+                // Extract and validate ROLES
+                // Construct TxOut, append to transaction output list
+                tx.vout.push_back(
+                    CTxOut(
+                        pos != std::string::npos ? ExtractAndValidateRoles(strInput.substr(0, pos)) : CTxOut::CRoleChangeMode({ CTxOut::NULL_ROLE_RESERVED, false, false, false, false, false }),
+                        CScript() << OP_RETURN << data));
+	    }
+	    break;
         case CTransaction::VERSION_POLICY_CHANGE:
+        case CTransaction::VERSION_POLICY_CHANGE_FEE:
             // TODO
             break;
     }
@@ -517,17 +593,34 @@ static void MutateTxAddOutScript(CMutableTransaction& tx, const std::string& str
     switch (tx.nVersion) {
         case CTransaction::VERSION_COIN_TRANSFER:
             // Extract and validate VALUE
-            // construct TxOut, append to transaction output list
+            // Construct TxOut, append to transaction output list
             tx.vout.push_back(
-                CTxOut(ExtractAndValidateValue(vStrInputParts[0]), scriptPubKey));
+		CTxOut(ExtractAndValidateValue(vStrInputParts[0]), scriptPubKey));
             break;
         case CTransaction::VERSION_ROLE_CHANGE:
-		    // Extract and validate ROLES
-            // construct TxOut, append to transaction output list
+            // Extract and validate ROLES
+            // Construct TxOut, append to transaction output list
             tx.vout.push_back(
                 CTxOut(ExtractAndValidateRoles(vStrInputParts[0]), scriptPubKey));
             break;
+        case CTransaction::VERSION_ROLE_CHANGE_FEE:
+	    // If this is the first TxOut, then it has to be a change address
+	    if (tx.vout.empty()) {
+                // Extract and validate VALUE
+                // Construct TxOut, append to transaction output list
+                tx.vout.push_back(
+		    CTxOut(ExtractAndValidateValue(vStrInputParts[0]), scriptPubKey));
+	    }
+	    // Otherwise, it has to be a role change
+	    else {
+                // Extract and validate ROLES
+                // Construct TxOut, append to transaction output list
+                tx.vout.push_back(
+                    CTxOut(ExtractAndValidateRoles(vStrInputParts[0]), scriptPubKey));
+	    }
+	    break;
         case CTransaction::VERSION_POLICY_CHANGE:
+        case CTransaction::VERSION_POLICY_CHANGE_FEE:
             // TODO
             break;
     }

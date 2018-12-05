@@ -46,9 +46,14 @@ UniValue ValueFromPolicy(const bool perm, const uint32_t mode, const uint32_t pa
                    perm ? "permanent" : "provisional"));
 }
 
-UniValue ValueFromTxOut(const CTxOut& txout, const int32_t txversion) // TODO: Remoev txversion
+UniValue ValueFromTxOut(const CTxOut& txout, int32_t txversion, unsigned int index) // TODO: Remove txversion and index
 {
     UniValue out(UniValue::VOBJ);
+
+    if (txversion == CTransaction::VERSION_ROLE_CHANGE_FEE)
+	txversion = index ? CTransaction::VERSION_ROLE_CHANGE : CTransaction::VERSION_COIN_TRANSFER;
+    else if (txversion == CTransaction::VERSION_POLICY_CHANGE_FEE)
+	txversion = index ? CTransaction::VERSION_POLICY_CHANGE : CTransaction::VERSION_COIN_TRANSFER;
 
     switch(txversion) {
         case CTransaction::VERSION_COIN_TRANSFER:
@@ -236,7 +241,7 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
     for (unsigned int i = 0; i < tx.vout.size(); i++) {
         const CTxOut& txout = tx.vout[i];
 
-        UniValue out = ValueFromTxOut(txout, tx.nVersion); // TODO: remove tx.nVersion
+        UniValue out = ValueFromTxOut(txout, tx.nVersion, i); // TODO: remove tx.nVersion and i
 
         out.pushKV("n", (int64_t)i);
 

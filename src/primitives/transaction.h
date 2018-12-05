@@ -248,14 +248,16 @@ public:
     // adapting relay policy by bumping MAX_STANDARD_VERSION, and then later date
     // bumping the default CURRENT_VERSION at which point both CURRENT_VERSION and
     // MAX_STANDARD_VERSION will be equal.
-    static const int32_t MAX_STANDARD_VERSION=1946;
+    static const int32_t MAX_STANDARD_VERSION=1948;
 
     // The transaction version determines the type of CTxOut output transaction
     // is stored in the "vout" array of the transaction. "vout" can contain only
     // one type of CTxOut.
-    static const int32_t VERSION_COIN_TRANSFER = 1944;
-    static const int32_t VERSION_ROLE_CHANGE   = 1945;
-    static const int32_t VERSION_POLICY_CHANGE = 1946;
+    static const int32_t VERSION_COIN_TRANSFER     = 1944;
+    static const int32_t VERSION_ROLE_CHANGE       = 1945;
+    static const int32_t VERSION_POLICY_CHANGE     = 1946;
+    static const int32_t VERSION_ROLE_CHANGE_FEE   = 1947;
+    static const int32_t VERSION_POLICY_CHANGE_FEE = 1948;
 
     // The local variables are made const to prevent unintended modification
     // without updating the cached hash value. However, CTransaction is not
