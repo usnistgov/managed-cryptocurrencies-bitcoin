@@ -226,64 +226,94 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
 }
 
 /**
- * Check authorization to execute a given transaction
+ * Check role validity.
+ *
+ * @param nRole
+ * @return
+ */
+bool isValidRole(const CTxOut::CRoleChangeMode nRole) {
+    // Account must be registered and not disabled
+    if(!nRole.fRoleR || nRole.fRoleD) {
+        return false;
+    }
+
+    // Account must only have one role
+    if(nRole.fRoleM && !nRole.fRoleC && !nRole.fRoleL && !nRole.fRoleA) {
+        return true;
+    }
+    if(nRole.fRoleC && !nRole.fRoleM && !nRole.fRoleL && !nRole.fRoleA) {
+        return true;
+    }
+    if(nRole.fRoleL && !nRole.fRoleC && !nRole.fRoleM && !nRole.fRoleA) {
+        return true;
+    }
+    if(nRole.fRoleA && !nRole.fRoleC && !nRole.fRoleL && !nRole.fRoleM) {
+        return true;
+    }
+
+    // By default
+    return false;
+}
+
+bool isAuthorizedRCM(const CTxOut::CRoleChangeMode inRole, const CTxOut::CRoleChangeMode outRole) {
+    // Managers (M role) can perform any role change.
+    if(inRole.fRoleM) {
+        return true;
+    }
+
+    // Account managers (A role) can register users.
+    if(outRole.fRoleR && inRole.fRoleA) {
+        return true;
+    }
+
+    // Law enforcement (L role) can disable accounts.
+    if(outRole.fRoleD && inRole.fRoleL) {
+        return true;
+    }
+
+    // By default
+    return false;
+}
+
+/**
+ * Check authorization to execute a given transaction.
  *
  * @param nVersion
  * @param vinAuth
  * @param txVouts
  * @return
  */
-bool isAuthorized(int32_t nVersion, const CTxOut& vinAuth, const std::vector<CTxOut> txVouts) {
+bool isAuthorized(int32_t nVersion, const CTxOut::CRoleChangeMode inRole, const std::vector<CTxOut> txVouts) {
+    // Check role validity
+    if(!isValidRole(inRole)) {
+        return false;
+    }
+
+    // Managers can perform anything (validity check made sure that they are registered and not disabled)
+    if(inRole.fRoleM) {
+        return true;
+    }
+
     switch(nVersion) {
         case CTransaction::VERSION_COIN_TRANSFER:
             // TODO
             break;
         case CTransaction::VERSION_ROLE_CHANGE:
-            // Managers can perform any role change
-            if(vinAuth.nRole.fRoleM) {
-                return true;
-            }
-
-            // Otherwise, check each vout to ensure correct vin role
+            // Check each vout to ensure correct vin role.
             for(const CTxOut& vout: txVouts) {
-                if (!vout.nRole.fRoleR) {
-                    if(vinAuth.nRole.fRoleA) {
-                        return false;
-                    }
-                } else if (vout.nRole.fRoleD) {
-                    if(!vinAuth.nRole.fRoleL) {
-                        return false;
-                    }
-                } else {
-                    if(!vinAuth.nRole.fRoleM) {
-                        return false;
-                    }
+                if(!isAuthorizedRCM(inRole, vout.nRole)) {
+                    return false;
                 }
             }
             break;
         case CTransaction::VERSION_ROLE_CHANGE_FEE:
-            // Managers can perform any role change
-            if(vinAuth.nRole.fRoleM) {
-                return true;
-            }
-
-            // Otherwise, check each vout to ensure correct vin role
-            // Note: the last vout correspond to the change and should not be checked
-            for(unsigned int i = 0; i < txVouts.size() - 1; ++i) {
+            // Check each vout to ensure correct vin role.
+            // Note: the first vout correspond to the change and should not be checked
+            for(unsigned int i = 1; i < txVouts.size(); ++i) {
                 const CTxOut& vout = txVouts[i];
 
-                if (!vout.nRole.fRoleR) {
-                    if(vinAuth.nRole.fRoleA) {
-                        return false;
-                    }
-                } else if (vout.nRole.fRoleD) {
-                    if(!vinAuth.nRole.fRoleL) {
-                        return false;
-                    }
-                } else {
-                    if(!vinAuth.nRole.fRoleM) {
-                        return false;
-                    }
+                if(!isAuthorizedRCM(inRole, vout.nRole)) {
+                    return false;
                 }
             }
             break;
@@ -297,7 +327,8 @@ bool isAuthorized(int32_t nVersion, const CTxOut& vinAuth, const std::vector<CTx
             return false;
     }
 
-    return true;
+    // By default
+    return false;
 }
 
 bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoinsViewCache& inputs, int nSpendHeight, CAmount& txfee)
@@ -317,7 +348,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
             return state.Invalid(false, REJECT_INVALID, "bad-txns-first-vin-not-roles");
         }
 
-        if(!isAuthorized(tx.nVersion, coin.out, tx.vout)) {
+        if(!isAuthorized(tx.nVersion, coin.out.nRole, tx.vout)) {
             return state.Invalid(false, REJECT_INVALID, "bad-txns-not-authorized");
         }
 
