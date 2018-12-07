@@ -36,12 +36,8 @@ static CBlock CreateGenesisBlock(const CScript& managerOutputScript, uint32_t nT
     txMgr.vout.resize(1);
     txMgr.vin[0].scriptSig = CScript() << 486604799 << CScriptNum(4) << std::vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
     txMgr.vout[0] = CTxOut(
-            policy.GetActivePolicy().fRoleMActive,
-            policy.GetActivePolicy().fRoleCActive,
-            policy.GetActivePolicy().fRoleLActive,
-            policy.GetActivePolicy().fRoleRActive,
-            policy.GetActivePolicy().fRoleAActive,
-            policy.GetActivePolicy().fRoleDActive,
+            policy.GetActivePolicy().fRoleMActive, false, false,
+            policy.GetActivePolicy().fRoleRActive, false, false,
             managerOutputScript);
 
     // Build the genesis block
@@ -355,10 +351,10 @@ public:
         nDefaultPort = 18444;
         nPruneAfterHeight = 1000;
 
-        uint256 hashGenesisBlock = uint256S("0x1a692b92be40fb81d42d7c094e813d8544d1ee3d4c23bb52fce4c364f5ea80df");
-        uint256 hashMerkleRoot   = uint256S("0x3a5a72e82b4e453a704dec11f5b99052b8eff5c6886e62881fb5aa4dfeab3e10");
+        uint256 hashGenesisBlock = uint256S("0x5cac4d0b4115aced99b28224b4f03c46f0bd02aed0be2958ca4e013b85be36a1");
+        uint256 hashMerkleRoot   = uint256S("0x37a7b5c961423e4ced213078479ca83e14bd9399bcab5608f0a29f87fb23803d");
 
-        genesis = CreateTestGenesisBlock(1538956800, 1, 0x207fffff, 1, GetManagementPolicy());
+        genesis = CreateTestGenesisBlock(1538956800, 2, 0x207fffff, 1, GetManagementPolicy());
         consensus.hashGenesisBlock = genesis.GetHash();
         if (consensus.hashGenesisBlock != hashGenesisBlock || genesis.hashMerkleRoot != hashMerkleRoot) {
             fprintf(stderr, "Regtest genesis block needs to be re-mined:\n");
