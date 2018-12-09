@@ -832,9 +832,34 @@ static void ApplyStats(CCoinsStats &stats, CHashWriter& ss, const uint256& hash,
     for (const auto output : outputs) {
         ss << VARINT(output.first + 1);
         ss << output.second.out.scriptPubKey;
-        ss << VARINT(output.second.out.nValue);
+// FIXME
+switch(output.second.out.nTxType) {
+case CTxOut::COIN_TRANSFER:
+	std::cout << "\t" << __func__ << " vout index=" << output.first+1 << " nValue=" << output.second.out.nValue << std::endl;
+    ss << VARINT(output.second.out.nValue);
+    stats.nTotalAmount += output.second.out.nValue;
+	break;
+case CTxOut::ROLE_CHANGE:
+	std::cout << "\t" << __func__ << " vout index=" << output.first+1 << " nRole=";
+	std::cout << output.second.out.nRole.fRoleM ? 'M' : '.';
+	std::cout << output.second.out.nRole.fRoleC ? 'C' : '.';
+	std::cout << output.second.out.nRole.fRoleL ? 'L' : '.';
+	std::cout << output.second.out.nRole.fRoleR ? 'R' : '.';
+	std::cout << output.second.out.nRole.fRoleA ? 'A' : '.';
+	std::cout << output.second.out.nRole.fRoleD ? 'D' : '.';
+	std::cout << std::endl;
+	break;
+default:
+	std::cout << "\t" << __func__ << " vout index=" << output.first+1 << " nPolicy=";
+	std::cout << output.second.out.nPolicy.fPrmnt ? "Perm" : "Temp";
+	std::cout << ':';
+	std::cout << output.second.out.nPolicy.nType;
+	std::cout << ':';
+	std::cout << output.second.out.nPolicy.nParam;
+	std::cout << std::endl;
+	break;
+}
         stats.nTransactionOutputs++;
-        stats.nTotalAmount += output.second.out.nValue;
         stats.nBogoSize += 32 /* txid */ + 4 /* vout index */ + 4 /* height + coinbase */ + 8 /* amount */ +
                            2 /* scriptPubKey len */ + output.second.out.scriptPubKey.size() /* scriptPubKey */;
     }
@@ -862,6 +887,8 @@ static bool GetUTXOStats(CCoinsView *view, CCoinsStats &stats)
         Coin coin;
         if (pcursor->GetKey(key) && pcursor->GetValue(coin)) {
             if (!outputs.empty() && key.hash != prevkey) {
+// FIXME
+std::cout << "\t" << __func__ << " key=" << pcursor->GetKey(key) << " value=" << pcursor->GetValue(coin) << std::endl;
                 ApplyStats(stats, ss, prevkey, outputs);
                 outputs.clear();
             }
@@ -1042,7 +1069,17 @@ UniValue gettxout(const JSONRPCRequest& request)
     } else {
         ret.push_back(Pair("confirmations", (int64_t)(pindex->nHeight - coin.nHeight + 1)));
     }
-    ret.push_back(Pair("value", ValueFromAmount(coin.out.nValue)));
+    switch (coin.out.nTxType) {
+        case CTxOut::COIN_TRANSFER:
+            ret.push_back(Pair("value", ValueFromAmount(coin.out.nValue)));
+            break;
+        case CTxOut::ROLE_CHANGE:
+            ret.push_back(Pair("roles", ValueFromRoles(coin.out.nRole)));
+            break;
+        case CTxOut::POLICY_CHANGE:
+            ret.push_back(Pair("policy", ValueFromPolicy(coin.out.nPolicy)));
+            break;
+    }
     UniValue o(UniValue::VOBJ);
     ScriptPubKeyToUniv(coin.out.scriptPubKey, o, true);
     ret.push_back(Pair("scriptPubKey", o));

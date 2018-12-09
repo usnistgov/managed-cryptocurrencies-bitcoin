@@ -187,9 +187,9 @@ static CAmount ExtractAndValidateValue(const std::string& strValue)
     return value;
 }
 
-static CTxOut::CRoleChangeMode ExtractAndValidateRoles(const std::string& strRoles)
+static CRoleChangeMode ExtractAndValidateRoles(const std::string& strRoles)
 {
-    CTxOut::CRoleChangeMode roles;
+    CRoleChangeMode roles;
     if (!ParseRoles(strRoles, roles))
         throw std::runtime_error("invalid TX output roles");
     return roles;
@@ -523,7 +523,7 @@ static void MutateTxAddOutData(CMutableTransaction& tx, const std::string& strIn
             // Construct TxOut, append to transaction output list
             tx.vout.push_back(
                 CTxOut(
-                    pos != std::string::npos ? ExtractAndValidateRoles(strInput.substr(0, pos)) : CTxOut::CRoleChangeMode({ CTxOut::NULL_ROLE_RESERVED, false, false, false, false, false }),
+                    pos != std::string::npos ? ExtractAndValidateRoles(strInput.substr(0, pos)) : CRoleChangeMode({ CTxOut::NULL_ROLE_RESERVED, false, false, false, false, false }),
                     CScript() << OP_RETURN << data));
             break;
         case CTransaction::VERSION_ROLE_CHANGE_FEE:
@@ -542,7 +542,7 @@ static void MutateTxAddOutData(CMutableTransaction& tx, const std::string& strIn
                 // Construct TxOut, append to transaction output list
                 tx.vout.push_back(
                     CTxOut(
-                        pos != std::string::npos ? ExtractAndValidateRoles(strInput.substr(0, pos)) : CTxOut::CRoleChangeMode({ CTxOut::NULL_ROLE_RESERVED, false, false, false, false, false }),
+                        pos != std::string::npos ? ExtractAndValidateRoles(strInput.substr(0, pos)) : CRoleChangeMode({ CTxOut::NULL_ROLE_RESERVED, false, false, false, false, false }),
                         CScript() << OP_RETURN << data));
 	    }
 	    break;

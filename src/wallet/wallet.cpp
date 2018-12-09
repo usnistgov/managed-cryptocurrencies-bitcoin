@@ -1333,8 +1333,9 @@ CAmount CWallet::GetDebit(const CTxIn &txin, const isminefilter& filter) const
         {
             const CWalletTx& prev = (*mi).second;
             if (txin.prevout.n < prev.tx->vout.size())
-                if (IsMine(prev.tx->vout[txin.prevout.n]) & filter)
-                    return prev.tx->vout[txin.prevout.n].nValue;
+                if (prev.tx->vout[txin.prevout.n].nTxType == CTxOut::COIN_TRANSFER)
+                    if (IsMine(prev.tx->vout[txin.prevout.n]) & filter)
+                        return prev.tx->vout[txin.prevout.n].nValue;
         }
     }
     return 0;
@@ -1537,6 +1538,9 @@ void CWalletTx::GetAmounts(std::list<COutputEntry>& listReceived,
     {
         const CTxOut& txout = tx->vout[i];
         isminetype fIsMine = pwallet->IsMine(txout);
+
+        if (txout.nTxType != CTxOut::COIN_TRANSFER)
+            continue;
         // Only need to handle txouts if AT LEAST one of these is true:
         //   1) they debit from us (sent)
         //   2) the output is to us (received)
@@ -2134,6 +2138,8 @@ CAmount CWallet::GetLegacyBalance(const isminefilter& filter, int minDepth, cons
         CAmount debit = wtx.GetDebit(filter);
         const bool outgoing = debit > 0;
         for (const CTxOut& out : wtx.tx->vout) {
+            if (out.nTxType != CTxOut::COIN_TRANSFER)
+                continue;
             if (outgoing && IsChange(out)) {
                 debit -= out.nValue;
             } else if (IsMine(out) & filter && depth >= minDepth && (!account || *account == GetAccountName(out.scriptPubKey))) {
@@ -2162,6 +2168,8 @@ CAmount CWallet::GetAvailableBalance(const CCoinControl* coinControl) const
     std::vector<COutput> vCoins;
     AvailableCoins(vCoins, true, coinControl);
     for (const COutput& out : vCoins) {
+        if (out.tx->tx->vout[out.i].nTxType != CTxOut::COIN_TRANSFER)
+            continue;
         if (out.fSpendable) {
             balance += out.tx->tx->vout[out.i].nValue;
         }
@@ -2239,6 +2247,8 @@ void CWallet::AvailableCoins(std::vector<COutput> &vCoins, bool fOnlySafe, const
                 continue;
 
             for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++) {
+                if (pcoin->tx->vout[i].nTxType != CTxOut::COIN_TRANSFER)
+                    continue;
                 if (pcoin->tx->vout[i].nValue < nMinimumAmount || pcoin->tx->vout[i].nValue > nMaximumAmount)
                     continue;
 
@@ -2362,6 +2372,9 @@ static void ApproximateBestSubset(const std::vector<CInputCoin>& vValue, const C
         {
             for (unsigned int i = 0; i < vValue.size(); i++)
             {
+                if (vValue[i].txout.nTxType != CTxOut::COIN_TRANSFER)
+                    continue;
+
                 //The solver here uses a randomized algorithm,
                 //the randomness serves no real security purpose but is just
                 //needed to prevent degenerate behavior and it is important
@@ -2418,6 +2431,9 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMin
         int i = output.i;
 
         CInputCoin coin = CInputCoin(pcoin, i);
+
+        if (coin.txout.nTxType != CTxOut::COIN_TRANSFER)
+            continue;
 
         if (coin.txout.nValue == nTargetValue)
         {
@@ -2504,6 +2520,8 @@ bool CWallet::SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAm
     {
         for (const COutput& out : vCoins)
         {
+            if (out.tx->tx->vout[out.i].nTxType != CTxOut::COIN_TRANSFER)
+                continue;
             if (!out.fSpendable)
                  continue;
             nValueRet += out.tx->tx->vout[out.i].nValue;
@@ -2595,8 +2613,10 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount& nFeeRet, int& nC
     // Turn the txout set into a CRecipient vector.
     for (size_t idx = 0; idx < tx.vout.size(); idx++) {
         const CTxOut& txOut = tx.vout[idx];
-        CRecipient recipient = {txOut.scriptPubKey, txOut.nValue, setSubtractFeeFromOutputs.count(idx) == 1};
-        vecSend.push_back(recipient);
+        if (txOut.nTxType == CTxOut::COIN_TRANSFER) {
+            CRecipient recipient = {txOut.scriptPubKey, txOut.nValue, setSubtractFeeFromOutputs.count(idx) == 1};
+            vecSend.push_back(recipient);
+        }
     }
 
     coinControl.fAllowOtherInputs = true;
@@ -2625,7 +2645,8 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount& nFeeRet, int& nC
     // Copy output sizes from new transaction; they may have had the fee
     // subtracted from them.
     for (unsigned int idx = 0; idx < tx.vout.size(); idx++) {
-        tx.vout[idx].nValue = wtx.tx->vout[idx].nValue;
+        if (tx.vout[idx].nTxType == CTxOut::COIN_TRANSFER)
+            tx.vout[idx].nValue = wtx.tx->vout[idx].nValue;
     }
 
     // Add new txins while keeping original txin scriptSig/order.
@@ -3480,6 +3501,9 @@ std::map<CTxDestination, CAmount> CWallet::GetAddressBalances()
 
             for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++)
             {
+                if (pcoin->tx->vout[i].nTxType != CTxOut::COIN_TRANSFER) {
+                    continue;
+                }
                 CTxDestination addr;
                 if (!IsMine(pcoin->tx->vout[i]))
                     continue;

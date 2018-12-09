@@ -54,8 +54,8 @@ public:
         return activePolicy.nCurBlockReward;
     }
 
-    CTxOut::CRoleChangeMode GetActiveRoles() const {
-      CTxOut::CRoleChangeMode role;
+    CRoleChangeMode GetActiveRoles() const {
+      CRoleChangeMode role;
       role.fRoleM = activePolicy.fRoleMActive;
       role.fRoleC = activePolicy.fRoleCActive;
       role.fRoleL = activePolicy.fRoleLActive;

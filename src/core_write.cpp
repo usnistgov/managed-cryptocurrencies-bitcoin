@@ -26,24 +26,24 @@ UniValue ValueFromAmount(const CAmount& amount)
             strprintf("%s%d.%08d", sign ? "-" : "", quotient, remainder));
 }
 
-UniValue ValueFromRoles(const bool roleM, const bool roleC, const bool roleL, const bool roleR, const bool roleA, const bool roleD)
+UniValue ValueFromRoles(const CRoleChangeMode& roles)
 {
     return UniValue(UniValue::VSTR,
                strprintf("%c%c%c%c%c%c",
-                   roleM ? 'M' : '.',
-                   roleC ? 'C' : '.',
-                   roleL ? 'L' : '.',
-                   roleR ? 'R' : '.',
-                   roleA ? 'A' : '.',
-                   roleD ? 'D' : '.'));
+                   roles.fRoleM ? 'M' : '.',
+                   roles.fRoleC ? 'C' : '.',
+                   roles.fRoleL ? 'L' : '.',
+                   roles.fRoleR ? 'R' : '.',
+                   roles.fRoleA ? 'A' : '.',
+                   roles.fRoleD ? 'D' : '.'));
 }
 
-UniValue ValueFromPolicy(const bool perm, const uint32_t mode, const uint32_t param)
+UniValue ValueFromPolicy(const CPolicyChangeMode& policy)
 {
     return UniValue(UniValue::VSTR,
                strprintf("mode=%u param=%u %s", // FIXME
-                   mode, param,
-                   perm ? "permanent" : "provisional"));
+                   policy.nType, policy.nParam,
+                   policy.fPrmnt ? "permanent" : "provisional"));
 }
 
 UniValue ValueFromTxOut(const CTxOut& txout, int32_t txversion, unsigned int index) // TODO: Remove txversion and index
@@ -62,11 +62,11 @@ UniValue ValueFromTxOut(const CTxOut& txout, int32_t txversion, unsigned int ind
             break;
         case CTransaction::VERSION_ROLE_CHANGE:
             assert(txout.nTxType == CTxOut::ROLE_CHANGE); // TODO: Remove when tests succeed
-            out.pushKV("roles", ValueFromRoles(txout.nRole.fRoleM, txout.nRole.fRoleC, txout.nRole.fRoleL, txout.nRole.fRoleR, txout.nRole.fRoleA, txout.nRole.fRoleD));
+            out.pushKV("roles", ValueFromRoles(txout.nRole));
             break;
         case CTransaction::VERSION_POLICY_CHANGE:
             assert(txout.nTxType == CTxOut::POLICY_CHANGE); // TODO: Remove when tests succeed
-            out.pushKV("value", ValueFromPolicy(txout.nPolicy.fPrmnt, txout.nPolicy.nType, txout.nPolicy.nParam));
+            out.pushKV("value", ValueFromPolicy(txout.nPolicy));
             break;
         default:
             LogPrint(BCLog::EXPERIMENT, "Unsupported transaction version: %d / CTxOut type: %u\n", txversion, txout.nTxType); // FIXME

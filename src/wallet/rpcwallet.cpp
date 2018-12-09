@@ -708,9 +708,10 @@ UniValue getreceivedbyaddress(const JSONRPCRequest& request)
             continue;
 
         for (const CTxOut& txout : wtx.tx->vout)
-            if (txout.scriptPubKey == scriptPubKey)
-                if (wtx.GetDepthInMainChain() >= nMinDepth)
-                    nAmount += txout.nValue;
+            if (txout.nTxType == CTxOut::COIN_TRANSFER)
+                if (txout.scriptPubKey == scriptPubKey)
+                    if (wtx.GetDepthInMainChain() >= nMinDepth)
+                        nAmount += txout.nValue;
     }
 
     return  ValueFromAmount(nAmount);
@@ -770,10 +771,12 @@ UniValue getreceivedbyaccount(const JSONRPCRequest& request)
 
         for (const CTxOut& txout : wtx.tx->vout)
         {
-            CTxDestination address;
-            if (ExtractDestination(txout.scriptPubKey, address) && IsMine(*pwallet, address) && setAddress.count(address)) {
-                if (wtx.GetDepthInMainChain() >= nMinDepth)
-                    nAmount += txout.nValue;
+            if (txout.nTxType == CTxOut::COIN_TRANSFER) {
+                CTxDestination address;
+                if (ExtractDestination(txout.scriptPubKey, address) && IsMine(*pwallet, address) && setAddress.count(address)) {
+                    if (wtx.GetDepthInMainChain() >= nMinDepth)
+                        nAmount += txout.nValue;
+                }
             }
         }
     }

@@ -231,7 +231,7 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
  * @param nRole
  * @return
  */
-bool isValidRole(const CTxOut::CRoleChangeMode nRole) {
+bool isValidRole(const CRoleChangeMode& nRole) {
     // Account must be registered and not disabled
     if(!nRole.fRoleR || nRole.fRoleD) {
         return false;
@@ -255,7 +255,7 @@ bool isValidRole(const CTxOut::CRoleChangeMode nRole) {
     return false;
 }
 
-bool isAuthorizedRCM(const CTxOut::CRoleChangeMode inRole, const CTxOut::CRoleChangeMode outRole) {
+bool isAuthorizedRCM(const CRoleChangeMode& inRole, const CRoleChangeMode& outRole) {
     // Managers (M role) can perform any role change.
     if(inRole.fRoleM) {
         return true;
@@ -283,7 +283,7 @@ bool isAuthorizedRCM(const CTxOut::CRoleChangeMode inRole, const CTxOut::CRoleCh
  * @param txVouts
  * @return
  */
-bool isAuthorized(int32_t nVersion, const CTxOut::CRoleChangeMode inRole, const std::vector<CTxOut> txVouts) {
+bool isAuthorized(int32_t nVersion, const CRoleChangeMode& inRole, const std::vector<CTxOut>& txVouts) {
     // Check role validity
     if(!isValidRole(inRole)) {
         return false;

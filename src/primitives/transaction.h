@@ -125,6 +125,22 @@ public:
     std::string ToString() const;
 };
 
+struct CRoleChangeMode {
+    uint64_t fRoleD :1;
+    uint64_t fRoleA :1;
+    uint64_t fRoleR :1;
+    uint64_t fRoleL :1;
+    uint64_t fRoleC :1;
+    uint64_t fRoleM :1;
+    uint64_t nReserved :58;
+};
+
+struct CPolicyChangeMode {
+    uint64_t fPrmnt :1;
+    uint64_t nType  :31;
+    uint64_t nParam :32;
+};
+
 /** A generic output of a transaction.  It contains the public key that the next input
  * must be able to sign with to claim it.
  */
@@ -134,20 +150,8 @@ public:
     union
     {
         CAmount nValue;
-        struct CRoleChangeMode {
-                uint64_t fRoleD :1;
-                uint64_t fRoleA :1;
-                uint64_t fRoleR :1;
-                uint64_t fRoleL :1;
-                uint64_t fRoleC :1;
-                uint64_t fRoleM :1;
-                uint64_t nReserved :58;
-        } nRole;
-        struct CPolicyChangeMode {
-                uint64_t fPrmnt :1;
-                uint64_t nType  :31;
-                uint64_t nParam :32;
-        } nPolicy;
+        struct CRoleChangeMode nRole;
+        struct CPolicyChangeMode nPolicy;
     };
 
     CScript scriptPubKey;

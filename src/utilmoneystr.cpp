@@ -76,16 +76,16 @@ bool ParseMoney(const char* pszIn, CAmount& nRet)
     return true;
 }
 
-bool ParseRoles(const std::string& str, CTxOut::CRoleChangeMode& nRet)
+bool ParseRoles(const std::string& str, CRoleChangeMode& nRet)
 {
     return ParseRoles(str.c_str(), nRet);
 }
 
 
-bool ParseRoles(const char* pszIn, CTxOut::CRoleChangeMode& nRet)
+bool ParseRoles(const char* pszIn, CRoleChangeMode& nRet)
 {
     const char* p = pszIn;
-    CTxOut::CRoleChangeMode roles;
+    CRoleChangeMode roles;
 
     while (isspace(*p))
         p++;

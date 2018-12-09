@@ -548,8 +548,17 @@ static bool rest_getutxos(HTTPRequest* req, const std::string& strURIPart)
         for (const CCoin& coin : outs) {
             UniValue utxo(UniValue::VOBJ);
             utxo.push_back(Pair("height", (int32_t)coin.nHeight));
-            utxo.push_back(Pair("value", ValueFromAmount(coin.out.nValue)));
-
+            switch (coin.out.nTxType) {
+                case CTxOut::COIN_TRANSFER:
+                    utxo.push_back(Pair("value", ValueFromAmount(coin.out.nValue)));
+                    break;
+                case CTxOut::ROLE_CHANGE:
+                    utxo.push_back(Pair("roles", ValueFromRoles(coin.out.nRole)));
+                    break;
+                case CTxOut::POLICY_CHANGE:
+                    utxo.push_back(Pair("policy", ValueFromPolicy(coin.out.nPolicy)));
+                    break;
+            }
             // include the script in a json output
             UniValue o(UniValue::VOBJ);
             ScriptPubKeyToUniv(coin.out.scriptPubKey, o, true);
