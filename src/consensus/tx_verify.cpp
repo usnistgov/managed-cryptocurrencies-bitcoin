@@ -287,6 +287,7 @@ bool isAuthorized(int32_t nVersion, const CRoleChangeMode& inRole, const std::ve
     // Check role validity
     if(!isValidRole(inRole)) {
         return false;
+
     }
 
     // Managers can perform anything (validity check made sure that they are registered and not disabled)
@@ -304,6 +305,7 @@ bool isAuthorized(int32_t nVersion, const CRoleChangeMode& inRole, const std::ve
                 if(!isAuthorizedRCM(inRole, vout.nRole)) {
                     return false;
                 }
+                return true;
             }
             break;
         case CTransaction::VERSION_ROLE_CHANGE_FEE:
