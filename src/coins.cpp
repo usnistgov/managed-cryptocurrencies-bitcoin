@@ -7,6 +7,12 @@
 #include <consensus/consensus.h>
 #include <random.h>
 
+#include <pubkey.h>
+#include <script/standard.h>
+
+#include <iostream> // FIXME
+#include <base58.h> // FIXME
+
 bool CCoinsView::GetCoin(const COutPoint &outpoint, Coin &coin) const { return false; }
 uint256 CCoinsView::GetBestBlock() const { return uint256(); }
 std::vector<uint256> CCoinsView::GetHeadBlocks() const { return std::vector<uint256>(); }
@@ -67,6 +73,20 @@ void CCoinsViewCache::AddCoin(const COutPoint &outpoint, Coin&& coin, bool possi
     assert(!coin.IsSpent());
     if (coin.out.scriptPubKey.IsUnspendable()) return;
     CCoinsMap::iterator it;
+
+    CTxDestination dest1, dest2;
+    assert(ExtractDestination(coin.out.scriptPubKey, dest1));
+    for (it = cacheCoins.begin(); it != cacheCoins.end(); ++it) {
+            if (ExtractDestination(it->second.coin.out.scriptPubKey, dest2))
+std::cout << "##### " << __func__ << ":" << __LINE__ << "> " << EncodeDestination(dest1) << "?=" << EncodeDestination(dest2) << " type=" << it->second.coin.out.nTxType << std::endl;  // FIXME
+        if (it->second.coin.out.nTxType == CTxOut::ROLE_CHANGE) {
+std::cout << "##### " << __func__ << ":" << __LINE__ << "> " << EncodeDestination(dest1) << "?=" << EncodeDestination(dest2) << " type=" << it->second.coin.out.nTxType << std::endl;  // FIXME
+                if (dest1 == dest2) {
+                    // Found the old role UTXO, now delete it
+std::cout << "##### " << __func__ << ":" << __LINE__ << "> " << EncodeDestination(dest1) << "==" << EncodeDestination(dest2) << std::endl;  // FIXME
+                    cacheCoins.erase(it);
+                    break;
+                }}}
     bool inserted;
     std::tie(it, inserted) = cacheCoins.emplace(std::piecewise_construct, std::forward_as_tuple(outpoint), std::tuple<>());
     bool fresh = false;
