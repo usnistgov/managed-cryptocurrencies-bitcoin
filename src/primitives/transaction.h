@@ -441,9 +441,11 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
     CTxOut::TxType txtype;
     switch (tx.nVersion) {
         case CTransaction::VERSION_ROLE_CHANGE:
+        case CTransaction::VERSION_ROLE_CHANGE_FEE:
             txtype = CTxOut::ROLE_CHANGE;
             break;
         case CTransaction::VERSION_POLICY_CHANGE:
+        case CTransaction::VERSION_POLICY_CHANGE_FEE:
             txtype = CTxOut::POLICY_CHANGE;
             break;
         case CTransaction::VERSION_COIN_TRANSFER:
@@ -452,6 +454,10 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
     }
     for (size_t i = 0; i < tx.vout.size(); i++) {
         tx.vout[i].nTxType = txtype;
+    }
+    if (tx.nVersion == CTransaction::VERSION_ROLE_CHANGE_FEE || tx.nVersion == CTransaction::VERSION_POLICY_CHANGE_FEE) {
+        // The first Vout is a change address to pay the tx fee
+        tx.vout[0].nTxType = CTxOut::COIN_TRANSFER;
     }
     if ((flags & 1) && fAllowWitness) {
         /* The witness flag is present, and we support witnesses. */

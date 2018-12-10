@@ -2170,9 +2170,30 @@ UniValue gettransaction(const JSONRPCRequest& request)
     CAmount nNet = nCredit - nDebit;
     CAmount nFee = (wtx.IsFromMe(filter) ? wtx.tx->GetValueOut() - nDebit : 0);
 
-    entry.push_back(Pair("amount", ValueFromAmount(nNet - nFee)));
-    if (wtx.IsFromMe(filter))
-        entry.push_back(Pair("fee", ValueFromAmount(nFee)));
+    switch (wtx.tx->nVersion) {
+        case CTransaction::VERSION_ROLE_CHANGE:
+        case CTransaction::VERSION_ROLE_CHANGE_FEE:
+            for (const auto& tx_out : wtx.tx->vout)
+                if (tx_out.nTxType == CTxOut::ROLE_CHANGE)
+                    entry.push_back(Pair("roles", ValueFromRoles(tx_out.nRole)));
+            if (wtx.IsFromMe(filter))
+                entry.push_back(Pair("fee", ValueFromAmount(nFee)));
+            break;
+        case CTransaction::VERSION_POLICY_CHANGE:
+        case CTransaction::VERSION_POLICY_CHANGE_FEE:
+            for (const auto& tx_out : wtx.tx->vout)
+                if (tx_out.nTxType == CTxOut::POLICY_CHANGE)
+                    entry.push_back(Pair("policy", ValueFromPolicy(tx_out.nPolicy)));
+            if (wtx.IsFromMe(filter))
+                entry.push_back(Pair("fee", ValueFromAmount(nFee)));
+            break;
+        case CTransaction::VERSION_COIN_TRANSFER:
+        default:
+            entry.push_back(Pair("amount", ValueFromAmount(nNet - nFee)));
+            if (wtx.IsFromMe(filter))
+                entry.push_back(Pair("fee", ValueFromAmount(nFee)));
+            break;
+    }
 
     WalletTxToJSON(wtx, entry);
 

@@ -1348,6 +1348,8 @@ isminetype CWallet::IsMine(const CTxOut& txout) const
 
 CAmount CWallet::GetCredit(const CTxOut& txout, const isminefilter& filter) const
 {
+    if (txout.nTxType != CTxOut::COIN_TRANSFER)
+        return 0;
     if (!MoneyRange(txout.nValue))
         throw std::runtime_error(std::string(__func__) + ": value out of range");
     return ((IsMine(txout) & filter) ? txout.nValue : 0);

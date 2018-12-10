@@ -188,11 +188,11 @@ CAmount CTransaction::GetValueOut() const
 {
     CAmount nValueOut = 0;
     for (const auto& tx_out : vout) {
-	if (tx_out.nTxType == CTxOut::COIN_TRANSFER) {
+	    if (tx_out.nTxType == CTxOut::COIN_TRANSFER) {
             nValueOut += tx_out.nValue;
             if (!MoneyRange(tx_out.nValue) || !MoneyRange(nValueOut))
                 throw std::runtime_error(std::string(__func__) + ": value out of range");
-	}
+	    }
     }
     return nValueOut;
 }
