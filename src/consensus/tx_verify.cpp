@@ -305,9 +305,8 @@ bool isAuthorized(int32_t nVersion, const CRoleChangeMode& inRole, const std::ve
                 if(!isAuthorizedRCM(inRole, vout.nRole)) {
                     return false;
                 }
-                return true;
             }
-            break;
+            return true;
         case CTransaction::VERSION_ROLE_CHANGE_FEE:
             // Check each vout to ensure correct vin role.
             // Note: the first vout correspond to the change and should not be checked
