@@ -50,26 +50,72 @@ UniValue ValueFromTxOut(const CTxOut& txout, int32_t txversion, unsigned int ind
 {
     UniValue out(UniValue::VOBJ);
 
-    if (txversion == CTransaction::VERSION_ROLE_CHANGE_FEE)
-	txversion = index ? CTransaction::VERSION_ROLE_CHANGE : CTransaction::VERSION_COIN_TRANSFER;
-    else if (txversion == CTransaction::VERSION_POLICY_CHANGE_FEE)
-	txversion = index ? CTransaction::VERSION_POLICY_CHANGE : CTransaction::VERSION_COIN_TRANSFER;
-
     switch(txversion) {
-        case CTransaction::VERSION_COIN_TRANSFER:
-            assert(txout.nTxType == CTxOut::COIN_TRANSFER); // TODO: Remove when tests succeed
+        case CTransaction::VERSION_COINBASE_TRANSFER:
+            // All vouts are coin tansfers
+            assert(txout.nTxType == CTxOut::COIN_TRANSFER);
             out.pushKV("value", ValueFromAmount(txout.nValue));
             break;
+        case CTransaction::VERSION_COIN_TRANSFER:
+            // First vout is a role repeat (to prevent replay attacks)
+            if (index == 0) {
+                assert(txout.nTxType == CTxOut::ROLE_CHANGE);
+                out.pushKV("roles", ValueFromRoles(txout.nRole));
+            }
+            // Following vouts are coin transfers
+            else {
+                assert(txout.nTxType == CTxOut::COIN_TRANSFER);
+                out.pushKV("value", ValueFromAmount(txout.nValue));
+            }
+            break;
         case CTransaction::VERSION_ROLE_CHANGE:
-            assert(txout.nTxType == CTxOut::ROLE_CHANGE); // TODO: Remove when tests succeed
+            // All vousts are role changes (the first one is a role repeat)
+            assert(txout.nTxType == CTxOut::ROLE_CHANGE);
             out.pushKV("roles", ValueFromRoles(txout.nRole));
             break;
         case CTransaction::VERSION_POLICY_CHANGE:
-            assert(txout.nTxType == CTxOut::POLICY_CHANGE); // TODO: Remove when tests succeed
-            out.pushKV("value", ValueFromPolicy(txout.nPolicy));
+            // First vout is a role repeat (to prevent replay attacks)
+            if (index == 0) {
+                assert(txout.nTxType == CTxOut::ROLE_CHANGE);
+                out.pushKV("roles", ValueFromRoles(txout.nRole));
+            }
+            // Following vouts are policy changes
+            else {
+                assert(txout.nTxType == CTxOut::POLICY_CHANGE);
+                out.pushKV("policy", ValueFromPolicy(txout.nPolicy));
+            }
+            break;
+        case CTransaction::VERSION_ROLE_CHANGE_FEE:
+            // The second vout is a coin transfer (to allow a fee)
+            if (index == 1) {
+                assert(txout.nTxType == CTxOut::COIN_TRANSFER);
+                out.pushKV("value", ValueFromAmount(txout.nValue));
+            }
+            // All other vouts are roles changes (the first one is a role repeat)
+            else {
+                assert(txout.nTxType == CTxOut::ROLE_CHANGE);
+                out.pushKV("roles", ValueFromRoles(txout.nRole));
+            }
+            break;
+        case CTransaction::VERSION_POLICY_CHANGE_FEE:
+            // First vout is a role repeat (to prevent replay attacks)
+            if (index == 0) {
+                assert(txout.nTxType == CTxOut::ROLE_CHANGE);
+                out.pushKV("roles", ValueFromRoles(txout.nRole));
+            }
+            // The second vout is a coin transfer (to allow a fee)
+            else if (index == 1) {
+                assert(txout.nTxType == CTxOut::COIN_TRANSFER);
+                out.pushKV("value", ValueFromAmount(txout.nValue));
+            }
+            // Following vouts are policy changes
+            else {
+                assert(txout.nTxType == CTxOut::POLICY_CHANGE);
+                out.pushKV("policy", ValueFromPolicy(txout.nPolicy));
+            }
             break;
         default:
-            LogPrint(BCLog::EXPERIMENT, "Unsupported transaction version: %d / CTxOut type: %u\n", txversion, txout.nTxType); // FIXME
+            throw std::ios_base::failure(std::string(__func__) + ":" + std::to_string(__LINE__) + "> Unknown transaction version: " + std::to_string(txversion)); // FIXME
     }
     return out;
 }

@@ -607,10 +607,10 @@ static bool AcceptToMemoryPoolWorker(const CChainParams& chainparams, CTxMemPool
     for (const CTxIn &txin : tx.vin)
     {
         // Role transactions can be used multiple times, so skip them
-        if (view.GetCoin(txin.prevout, coin)) {
+/*        if (view.GetCoin(txin.prevout, coin)) {
             if (coin.out.nTxType == CTxOut::ROLE_CHANGE)
                 continue;
-        }
+        }*/ // FIXME
 
         auto itConflicting = pool.mapNextTx.find(txin.prevout);
         if (itConflicting != pool.mapNextTx.end())
@@ -3111,6 +3111,7 @@ std::vector<unsigned char> GenerateCoinbaseCommitment(CBlock& block, const CBloc
             CHash256().Write(witnessroot.begin(), 32).Write(ret.data(), 32).Finalize(witnessroot.begin());
             CTxOut out;
             out.nValue = 0;
+            out.nTxType = CTxOut::COIN_TRANSFER;
             out.scriptPubKey.resize(38);
             out.scriptPubKey[0] = OP_RETURN;
             out.scriptPubKey[1] = 0x24;

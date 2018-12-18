@@ -15,6 +15,7 @@ static void addCoin(const CAmount& nValue, const CWallet& wallet, std::vector<CO
     CMutableTransaction tx;
     tx.nLockTime = nextLockTime++; // so all transactions get different hashes
     tx.vout.resize(nInput + 1);
+    tx.vout[nInput].nTxType = CTxOut::COIN_TRANSFER;
     tx.vout[nInput].nValue = nValue;
     CWalletTx* wtx = new CWalletTx(&wallet, MakeTransactionRef(std::move(tx)));
 

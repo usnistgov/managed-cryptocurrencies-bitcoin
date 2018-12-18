@@ -168,6 +168,9 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
         return state.DoS(100, false, REJECT_INVALID, "bad-txns-oversize");
 
     switch (tx.nVersion) {
+        case CTransaction::VERSION_COINBASE_TRANSFER:
+            // TODO
+            break;
         case CTransaction::VERSION_COIN_TRANSFER:
         {
 	        // Check for negative or overflow output values
@@ -296,6 +299,9 @@ bool isAuthorized(int32_t nVersion, const CRoleChangeMode& inRole, const std::ve
     }
 
     switch(nVersion) {
+        case CTransaction::VERSION_COINBASE_TRANSFER:
+            // TODO
+            break;
         case CTransaction::VERSION_COIN_TRANSFER:
             // TODO
             break;
@@ -325,6 +331,7 @@ bool isAuthorized(int32_t nVersion, const CRoleChangeMode& inRole, const std::ve
             // TODO
             break;
         default:
+            throw std::ios_base::failure(std::string(__func__) + ":" + std::to_string(__LINE__) + "> Unknown transaction version: " + std::to_string(nVersion)); // FIXME
             return false;
     }
 
@@ -357,6 +364,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
         // FIXME Get the address from this vin and check if it's the same in the following vins
     }
 
+    int i = 1; // Start collecting fees at the second vin since the first vin is a role for most tx
     switch (tx.nVersion)
     {
         case CTransaction::VERSION_ROLE_CHANGE:
@@ -365,18 +373,20 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
             // FIXME Make sure that the current policy allows for these transaction, but perhaps elsewhere
 	        txfee = 0;
             return true;
+        case CTransaction::VERSION_COINBASE_TRANSFER:
+            i = 0; // Start collecting fees at the first vin since there is not role vin for this type of tx
+            [[fallthrough]];
         case CTransaction::VERSION_COIN_TRANSFER:
         case CTransaction::VERSION_ROLE_CHANGE_FEE:
         case CTransaction::VERSION_POLICY_CHANGE_FEE:
         {
             CAmount nValueIn = 0;
+            while (i < tx.vin.size()) {
 
-            // Skip the first vin since it's a role change UTXO
-            // Collect fee from the following vins
-            for (unsigned int i = 1; i < tx.vin.size(); ++i) {
-                const COutPoint &prevout = tx.vin[i].prevout;
+                const COutPoint &prevout = tx.vin[i++].prevout;
                 const Coin& coin = inputs.AccessCoin(prevout);
                 if (coin.out.nTxType != CTxOut::COIN_TRANSFER) {
+                    coin.out.Check(__func__, __LINE__); // FIXME
                     return state.Invalid(false, REJECT_INVALID, "bad-txns-following-vin-not-coins");
                 }
                 assert(!coin.IsSpent());
@@ -411,6 +421,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
             return true;
         }
         default:
+            throw std::ios_base::failure(std::string(__func__) + ":" + std::to_string(__LINE__) + "> Unknown transaction version: " + std::to_string(tx.nVersion)); // FIXME
             return false;
     }
 }

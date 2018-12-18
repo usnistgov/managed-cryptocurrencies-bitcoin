@@ -141,6 +141,11 @@ struct CPolicyChangeMode {
     uint64_t nParam :32;
 };
 
+#include <stdio.h> // FIXME
+#include <execinfo.h> // FIXME
+#include <iostream> // FIXME
+#include <unistd.h> // FIXME
+
 /** A generic output of a transaction.  It contains the public key that the next input
  * must be able to sign with to claim it.
  */
@@ -156,19 +161,43 @@ public:
 
     CScript scriptPubKey;
 
-    enum TxType {
-        COIN_TRANSFER = 0,
-        ROLE_CHANGE   = 1,
-        POLICY_CHANGE = 2,
+    enum TxType : uint8_t {
+        UNINITIALIZED = 0,
+        COIN_TRANSFER = 1,
+        ROLE_CHANGE   = 2,
+        POLICY_CHANGE = 3,
     } nTxType;
 
     static const uint64_t NULL_ROLE_RESERVED = 0b0000000000000000000000000000000000000000000000000000000000;
-    static const uint64_t NULL_POLICY_PARAM  = 0b00000000000000000000000000000000;;
+    static const uint64_t NULL_POLICY_PARAM  = 0b00000000000000000000000000000000;
+
+    void Stack(const char* funcname, int lineno) // FIXME
+    {
+        return;
+        void *array[10];
+        size_t size;
+        size = backtrace(array, 10);
+        fprintf(stderr, "\nCTxOut@%lp: %s:%d\n", this, funcname, lineno);
+        std::cerr << ToString() << std::endl;
+        backtrace_symbols_fd(array, size, STDERR_FILENO);
+        fflush(stderr);
+    }
+
+    void Check(const char* funcname, int lineno) // FIXME
+    {
+        if (nTxType == UNINITIALIZED) {
+            char addr[20] = {0};
+            snprintf(addr, sizeof addr / sizeof *addr, "%lp", this);
+            Stack(funcname, lineno);
+            throw std::logic_error(std::string(funcname) + ":" + std::to_string(lineno) + "> Invalid nTxType: " + std::to_string(nTxType) + " CTxOut@" + std::string((char*)addr));
+        }
+    }
 
     CTxOut()
     {
-        nTxType = COIN_TRANSFER;
+        nTxType = UNINITIALIZED;
         SetNull();
+        Stack(__func__, __LINE__); // FIXME
     }
 
     CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn);
@@ -252,16 +281,17 @@ public:
     // adapting relay policy by bumping MAX_STANDARD_VERSION, and then later date
     // bumping the default CURRENT_VERSION at which point both CURRENT_VERSION and
     // MAX_STANDARD_VERSION will be equal.
-    static const int32_t MAX_STANDARD_VERSION=1948;
+    static const int32_t MAX_STANDARD_VERSION=1949;
 
     // The transaction version determines the type of CTxOut output transaction
     // is stored in the "vout" array of the transaction. "vout" can contain only
     // one type of CTxOut.
-    static const int32_t VERSION_COIN_TRANSFER     = 1944;
-    static const int32_t VERSION_ROLE_CHANGE       = 1945;
-    static const int32_t VERSION_POLICY_CHANGE     = 1946;
-    static const int32_t VERSION_ROLE_CHANGE_FEE   = 1947;
-    static const int32_t VERSION_POLICY_CHANGE_FEE = 1948;
+    static const int32_t VERSION_COINBASE_TRANSFER = 1944;
+    static const int32_t VERSION_COIN_TRANSFER     = 1945;
+    static const int32_t VERSION_ROLE_CHANGE       = 1946;
+    static const int32_t VERSION_POLICY_CHANGE     = 1947;
+    static const int32_t VERSION_ROLE_CHANGE_FEE   = 1948;
+    static const int32_t VERSION_POLICY_CHANGE_FEE = 1949;
 
     // The local variables are made const to prevent unintended modification
     // without updating the cached hash value. However, CTransaction is not
@@ -438,26 +468,53 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
         //* We read a non-empty vin. Assume a normal vout follows. */
         s >> tx.vout;
     }
-    CTxOut::TxType txtype;
-    switch (tx.nVersion) {
-        case CTransaction::VERSION_ROLE_CHANGE:
-        case CTransaction::VERSION_ROLE_CHANGE_FEE:
-            txtype = CTxOut::ROLE_CHANGE;
-            break;
-        case CTransaction::VERSION_POLICY_CHANGE:
-        case CTransaction::VERSION_POLICY_CHANGE_FEE:
-            txtype = CTxOut::POLICY_CHANGE;
-            break;
-        case CTransaction::VERSION_COIN_TRANSFER:
-        default:
-            txtype = CTxOut::COIN_TRANSFER;
-    }
-    for (size_t i = 0; i < tx.vout.size(); i++) {
-        tx.vout[i].nTxType = txtype;
-    }
-    if (tx.nVersion == CTransaction::VERSION_ROLE_CHANGE_FEE || tx.nVersion == CTransaction::VERSION_POLICY_CHANGE_FEE) {
-        // The first Vout is a change address to pay the tx fee
-        tx.vout[0].nTxType = CTxOut::COIN_TRANSFER;
+
+    if (tx.vout.size() > 0) {
+        // For all transaction types except coinbase, the first vout is always a role change
+        // so that a user is giving himself his own role (to prevent replay attacks).
+        if (tx.nVersion == CTransaction::VERSION_COINBASE_TRANSFER) {
+            for (int i = 0; i < tx.vout.size(); ++i)
+                tx.vout[i].nTxType = CTxOut::COIN_TRANSFER;
+            // TODO: mark the change as coinbase
+        }
+        else {
+            int i = 0;
+            tx.vout[i++].nTxType = CTxOut::ROLE_CHANGE;
+            // For transactions that carry a fee, the second vout is a change address
+            if (tx.vout.size() > 1) {
+                switch (tx.nVersion) {
+                    case CTransaction::VERSION_COIN_TRANSFER:
+                    case CTransaction::VERSION_ROLE_CHANGE_FEE:
+                    case CTransaction::VERSION_POLICY_CHANGE_FEE:
+                        tx.vout[i++].nTxType = CTxOut::COIN_TRANSFER;
+                        break;
+                }
+            }
+            // The following vout entries depend on the tx version
+            CTxOut::TxType txtype = CTxOut::UNINITIALIZED;
+            switch (tx.nVersion) {
+                case CTransaction::VERSION_ROLE_CHANGE:
+                case CTransaction::VERSION_ROLE_CHANGE_FEE:
+                    txtype = CTxOut::ROLE_CHANGE;
+                    break;
+                case CTransaction::VERSION_POLICY_CHANGE:
+                case CTransaction::VERSION_POLICY_CHANGE_FEE:
+                    txtype = CTxOut::POLICY_CHANGE;
+                    break;
+                case CTransaction::VERSION_COIN_TRANSFER:
+                    txtype = CTxOut::COIN_TRANSFER;
+                    break;
+                default:
+                    // Unrecognized version
+                    throw std::ios_base::failure(std::string(__func__) + ":" + std::to_string(__LINE__) + "> Unknown transaction version: " + std::to_string(tx.nVersion)); // FIXME
+            }
+            while (i < tx.vout.size()) {
+                tx.vout[i++].nTxType = txtype;
+            }
+            for (size_t i = 0; i < tx.vout.size(); i++) { // FIXME
+                tx.vout[i].Check(__func__, __LINE__);;
+            }
+        }
     }
     if ((flags & 1) && fAllowWitness) {
         /* The witness flag is present, and we support witnesses. */

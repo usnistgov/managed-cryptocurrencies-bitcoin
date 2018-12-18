@@ -558,6 +558,8 @@ static bool rest_getutxos(HTTPRequest* req, const std::string& strURIPart)
                 case CTxOut::POLICY_CHANGE:
                     utxo.push_back(Pair("policy", ValueFromPolicy(coin.out.nPolicy)));
                     break;
+                default:
+                    coin.out.Check(__func__, __LINE__); // FIXME
             }
             // include the script in a json output
             UniValue o(UniValue::VOBJ);

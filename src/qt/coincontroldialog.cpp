@@ -463,7 +463,8 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
         nQuantity++;
 
         // Amount
-        nAmount += out.tx->tx->vout[out.i].nValue;
+        if (out.nTxType == CTxOut::COIN_TRANSFER)
+            nAmount += out.tx->tx->vout[out.i].nValue;
 
         // Bytes
         CTxDestination address;
@@ -649,6 +650,9 @@ void CoinControlDialog::updateView()
         CAmount nSum = 0;
         int nChildren = 0;
         for (const COutput& out : coins.second) {
+            if (out.nTxType != CTxOut::COIN_TRANSFER)
+                continue;
+
             nSum += out.tx->tx->vout[out.i].nValue;
             nChildren++;
 

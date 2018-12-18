@@ -55,6 +55,7 @@ public:
             ::Unserialize(s, VARINT(nVersionDummy));
         }
         ::Unserialize(s, REF(CTxOutCompressor(REF(txout->out))));
+        txout->out.Check(__func__, __LINE__); // FIXME
     }
 
     explicit TxInUndoDeserializer(Coin* coin) : txout(coin) {}

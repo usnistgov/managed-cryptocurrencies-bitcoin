@@ -51,7 +51,8 @@ CAmount GetDustThreshold(const CTxOut& txout, const CFeeRate& dustRelayFeeIn)
 
 bool IsDust(const CTxOut& txout, const CFeeRate& dustRelayFeeIn)
 {
-    return (txout.nValue < GetDustThreshold(txout, dustRelayFeeIn));
+    txout.Check(__func__, __LINE__); // FIXME
+    return (txout.nTxType != CTxOut::COIN_TRANSFER || txout.nValue < GetDustThreshold(txout, dustRelayFeeIn));
 }
 
 bool IsStandard(const CScript& scriptPubKey, txnouttype& whichType, const bool witnessEnabled)

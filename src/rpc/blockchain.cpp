@@ -849,7 +849,7 @@ case CTxOut::ROLE_CHANGE:
 	std::cout << output.second.out.nRole.fRoleD ? 'D' : '.';
 	std::cout << std::endl;
 	break;
-default:
+case CTxOut::POLICY_CHANGE:
 	std::cout << "\t" << __func__ << " vout index=" << output.first+1 << " nPolicy=";
 	std::cout << output.second.out.nPolicy.fPrmnt ? "Perm" : "Temp";
 	std::cout << ':';
@@ -858,6 +858,8 @@ default:
 	std::cout << output.second.out.nPolicy.nParam;
 	std::cout << std::endl;
 	break;
+default:
+	std::cout << "\t" << __func__ << " vout index=" << output.first+1 << " Invalid nTxType: " << output.second.out.nTxType << std::endl;
 }
         stats.nTransactionOutputs++;
         stats.nBogoSize += 32 /* txid */ + 4 /* vout index */ + 4 /* height + coinbase */ + 8 /* amount */ +
@@ -1079,6 +1081,8 @@ UniValue gettxout(const JSONRPCRequest& request)
         case CTxOut::POLICY_CHANGE:
             ret.push_back(Pair("policy", ValueFromPolicy(coin.out.nPolicy)));
             break;
+        default:
+            coin.out.Check(__func__, __LINE__); // FIXME
     }
     UniValue o(UniValue::VOBJ);
     ScriptPubKeyToUniv(coin.out.scriptPubKey, o, true);

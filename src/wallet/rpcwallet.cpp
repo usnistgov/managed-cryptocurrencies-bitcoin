@@ -708,10 +708,12 @@ UniValue getreceivedbyaddress(const JSONRPCRequest& request)
             continue;
 
         for (const CTxOut& txout : wtx.tx->vout)
-            if (txout.nTxType == CTxOut::COIN_TRANSFER)
+            if (txout.nTxType == CTxOut::COIN_TRANSFER) {
                 if (txout.scriptPubKey == scriptPubKey)
                     if (wtx.GetDepthInMainChain() >= nMinDepth)
                         nAmount += txout.nValue;
+            }
+            else txout.Check(__func__, __LINE__); // FIXME
     }
 
     return  ValueFromAmount(nAmount);
@@ -778,6 +780,7 @@ UniValue getreceivedbyaccount(const JSONRPCRequest& request)
                         nAmount += txout.nValue;
                 }
             }
+            else txout.Check(__func__, __LINE__); // FIXME
         }
     }
 
@@ -2188,11 +2191,12 @@ UniValue gettransaction(const JSONRPCRequest& request)
                 entry.push_back(Pair("fee", ValueFromAmount(nFee)));
             break;
         case CTransaction::VERSION_COIN_TRANSFER:
-        default:
             entry.push_back(Pair("amount", ValueFromAmount(nNet - nFee)));
             if (wtx.IsFromMe(filter))
                 entry.push_back(Pair("fee", ValueFromAmount(nFee)));
             break;
+        default:
+            throw std::ios_base::failure(std::string(__func__) + ":" + std::to_string(__LINE__) + "> Unknown transaction version: " + std::to_string(wtx.tx->nVersion)); // FIXME
     }
 
     WalletTxToJSON(wtx, entry);

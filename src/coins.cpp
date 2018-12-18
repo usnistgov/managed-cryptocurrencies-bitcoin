@@ -69,24 +69,36 @@ bool CCoinsViewCache::GetCoin(const COutPoint &outpoint, Coin &coin) const {
     return false;
 }
 
+#include <iostream> // FIXME
+#include <stdio.h>
+
 void CCoinsViewCache::AddCoin(const COutPoint &outpoint, Coin&& coin, bool possible_overwrite) {
+    if (!coin.IsSpent()) { // FIXME
+        fprintf(stderr, "\nCCoinsViewCache::AddCoin: CTxOut=%lp\n", &(coin.out));
+        std::cerr << coin.out.ToString() << std::endl;
+    }
     assert(!coin.IsSpent());
     if (coin.out.scriptPubKey.IsUnspendable()) return;
     CCoinsMap::iterator it;
 
-    CTxDestination dest1, dest2;
-    assert(ExtractDestination(coin.out.scriptPubKey, dest1));
-    for (it = cacheCoins.begin(); it != cacheCoins.end(); ++it) {
-            if (ExtractDestination(it->second.coin.out.scriptPubKey, dest2))
-std::cout << "##### " << __func__ << ":" << __LINE__ << "> " << EncodeDestination(dest1) << "?=" << EncodeDestination(dest2) << " type=" << it->second.coin.out.nTxType << std::endl;  // FIXME
-        if (it->second.coin.out.nTxType == CTxOut::ROLE_CHANGE) {
-std::cout << "##### " << __func__ << ":" << __LINE__ << "> " << EncodeDestination(dest1) << "?=" << EncodeDestination(dest2) << " type=" << it->second.coin.out.nTxType << std::endl;  // FIXME
-                if (dest1 == dest2) {
-                    // Found the old role UTXO, now delete it
-std::cout << "##### " << __func__ << ":" << __LINE__ << "> " << EncodeDestination(dest1) << "==" << EncodeDestination(dest2) << std::endl;  // FIXME
-                    cacheCoins.erase(it);
-                    break;
-                }}}
+    if (coin.out.nTxType == CTxOut::ROLE_CHANGE) { 
+        CTxDestination dest1, dest2;
+        assert(ExtractDestination(coin.out.scriptPubKey, dest1));
+        for (it = cacheCoins.begin(); it != cacheCoins.end(); ++it) {
+            if (ExtractDestination(it->second.coin.out.scriptPubKey, dest2)) {
+                std::cout << __func__ << ":" << __LINE__ << "> utxo1=" << coin.out.ToString() << " utxo2=" << it->second.coin.out.ToString() << std::endl;  // FIXME
+                if (it->second.coin.out.nTxType == CTxOut::ROLE_CHANGE) {
+                    std::cout << __func__ << ":" << __LINE__ << "> utxo1=" << coin.out.ToString() << " utxo2=" << it->second.coin.out.ToString() << std::endl;  // FIXME
+                    if (dest1 == dest2) {
+                        // Found the old role UTXO, now delete it
+                        std::cout << __func__ << ":" << __LINE__ << "> utxo1=" << coin.out.ToString() << " utxo2=" << it->second.coin.out.ToString() << std::endl;  // FIXME
+                        cacheCoins.erase(it);
+                        break;
+                    }
+                }
+            }
+        }
+    }
     bool inserted;
     std::tie(it, inserted) = cacheCoins.emplace(std::piecewise_construct, std::forward_as_tuple(outpoint), std::tuple<>());
     bool fresh = false;
@@ -120,10 +132,10 @@ bool CCoinsViewCache::SpendCoin(const COutPoint &outpoint, Coin* moveout) {
     if (it == cacheCoins.end()) return false;
     cachedCoinsUsage -= it->second.coin.DynamicMemoryUsage();
     // If policy or role change mode, pretend we spent the transaction but don't erase it.
-    if(it->second.coin.out.nTxType == CTxOut::ROLE_CHANGE || it->second.coin.out.nTxType == CTxOut::POLICY_CHANGE) {
+/*    if(it->second.coin.out.nTxType == CTxOut::ROLE_CHANGE || it->second.coin.out.nTxType == CTxOut::POLICY_CHANGE) {
         moveout = nullptr;
         return true;
-    }
+    }*/
     if (moveout) {
         *moveout = std::move(it->second.coin);
     }
@@ -251,8 +263,12 @@ CAmount CCoinsViewCache::GetValueIn(const CTransaction& tx) const
         return 0;
 
     CAmount nResult = 0;
-    for (unsigned int i = 0; i < tx.vin.size(); i++)
-        nResult += AccessCoin(tx.vin[i].prevout).out.nValue;
+    for (unsigned int i = 0; i < tx.vin.size(); i++) {
+        const CTxOut& out = AccessCoin(tx.vin[i].prevout).out;
+        if (out.nTxType == CTxOut::COIN_TRANSFER)
+            nResult += out.nValue;
+        else out.Check(__func__, __LINE__); // FIXME
+    }
 
     return nResult;
 }

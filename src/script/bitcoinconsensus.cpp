@@ -90,7 +90,12 @@ static int verify_script(const unsigned char *scriptPubKey, unsigned int scriptP
             return set_error(err, bitcoinconsensus_ERR_TX_INDEX);
         if (GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION) != txToLen)
             return set_error(err, bitcoinconsensus_ERR_TX_SIZE_MISMATCH);
-
+// FIXME
+std::cout << __func__ << ":" << __LINE__ << "> tx.nVersion=" << tx.nVersion;
+for (int i = 0; i < tx.vout.size(); ++i) {
+    std::cout << " type=" << (int)(tx.vout[i].nTxType);
+}
+std::cout << std::endl;
         // Regardless of the verification result, the tx did not error.
         set_error(err, bitcoinconsensus_ERR_OK);
 

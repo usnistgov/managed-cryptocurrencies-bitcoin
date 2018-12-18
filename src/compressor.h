@@ -106,12 +106,18 @@ public:
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action) {
         if (!ser_action.ForRead()) {
+            uint8_t nTyp = txout.nTxType;
             uint64_t nVal = CompressAmount(txout.nValue);
             READWRITE(VARINT(nVal));
+            READWRITE(VARINT(nTyp));
         } else {
+            int nTyp = CTxOut::UNINITIALIZED;
             uint64_t nVal = 0;
             READWRITE(VARINT(nVal));
+            READWRITE(VARINT(nTyp));
             txout.nValue = DecompressAmount(nVal);
+            txout.nTxType = (enum CTxOut::TxType)nTyp;
+            txout.Check(__func__, __LINE__); // FIXME
         }
         CScriptCompressor cscript(REF(txout.scriptPubKey));
         READWRITE(cscript);

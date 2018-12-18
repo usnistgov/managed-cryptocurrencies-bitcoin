@@ -7,7 +7,9 @@
 
 #include <hash.h>
 #include <util.h>
+#include <base58.h>
 #include <tinyformat.h>
+#include <script/standard.h>
 #include <utilstrencodings.h>
 #include <policy/management.h>
 
@@ -50,6 +52,7 @@ CTxOut::CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn)
     nTxType = COIN_TRANSFER;
     nValue = nValueIn;
     scriptPubKey = scriptPubKeyIn;
+    Stack(__func__, __LINE__);
 }
 
 CTxOut::CTxOut(
@@ -70,6 +73,7 @@ CTxOut::CTxOut(
     nRole.fRoleD = fRoleDIn;
     nRole.nReserved = NULL_ROLE_RESERVED;
     scriptPubKey = scriptPubKeyIn;
+    Stack(__func__, __LINE__);
 }
 
 CTxOut::CTxOut(const CRoleChangeMode& nRolesIn, CScript scriptPubKeyIn)
@@ -77,6 +81,7 @@ CTxOut::CTxOut(const CRoleChangeMode& nRolesIn, CScript scriptPubKeyIn)
     nTxType = ROLE_CHANGE;
     nRole = nRolesIn;
     scriptPubKey = scriptPubKeyIn;
+    Stack(__func__, __LINE__);
 }
 
 CTxOut::CTxOut(
@@ -90,68 +95,49 @@ CTxOut::CTxOut(
     nPolicy.nType  = nTypeIn;
     nPolicy.nParam = nParamIn;
     scriptPubKey = scriptPubKeyIn;
+    Stack(__func__, __LINE__);
 }
 
 void CTxOut::SetNull()
 {
+    nTxType = UNINITIALIZED;
     scriptPubKey.clear();
-    switch(nTxType) {
-        case ROLE_CHANGE:
-            nRole.fRoleM = false;
-            nRole.fRoleC = false;
-            nRole.fRoleL = false;
-            nRole.fRoleR = false;
-            nRole.fRoleA = false;
-            nRole.fRoleD = false;
-            nRole.nReserved = CTxOut::NULL_ROLE_RESERVED;
-            break;
-        case POLICY_CHANGE:
-            nPolicy.fPrmnt = false;
-            nPolicy.nType = CManagementPolicy::NOOP;
-            nPolicy.nParam = CTxOut::NULL_POLICY_PARAM;
-        case COIN_TRANSFER:
-        default:
-            nValue = -1;
-            break;
-    }
+    nValue = -1;
 }
 
 #include <csignal>
 
 bool CTxOut::IsNull() const
 {
-    switch(nTxType) {
-        case COIN_TRANSFER:
-            return (nValue == -1);
-        case ROLE_CHANGE:
-            return !nRole.fRoleM && !nRole.fRoleC && !nRole.fRoleL && !nRole.fRoleR && !nRole.fRoleA && !nRole.fRoleD && (nRole.nReserved == NULL_ROLE_RESERVED);
-        case POLICY_CHANGE:
-            return !nPolicy.fPrmnt && (nPolicy.nType == CManagementPolicy::NOOP) && (nPolicy.nParam == NULL_POLICY_PARAM);
-        default:
-            LogPrint(BCLog::EXPERIMENT, "CTXout of invalid tx type: %u", nTxType);
-            return true;
-    }
+    return nTxType == UNINITIALIZED && nValue == -1;
 }
 
 std::string CTxOut::ToString() const
 {
+    CTxDestination dest;
+    std::string sdest;
+    if (ExtractDestination(scriptPubKey, dest))
+        sdest = EncodeDestination(dest);
+    else sdest = "unknown";
     switch(nTxType) {
         case COIN_TRANSFER:
-            return strprintf("CTxOut(nValue=%d.%08d, scriptPubKey=%s)", nValue / COIN, nValue % COIN, HexStr(scriptPubKey).substr(0, 30));
+            return strprintf("CTxOut(nValue=%d.%08d, dest=%s)", nValue / COIN, nValue % COIN, sdest);
         case ROLE_CHANGE:
-            return strprintf("CTxOut(nRole=%c%c%c%c%c%c, scriptPubKey=%s)",
+            return strprintf("CTxOut(nRole=%c%c%c%c%c%c, dest=%s)",
                     nRole.fRoleM ? 'M' : '.',
                     nRole.fRoleC ? 'C' : '.',
                     nRole.fRoleL ? 'L' : '.',
                     nRole.fRoleR ? 'R' : '.',
                     nRole.fRoleA ? 'A' : '.',
                     nRole.fRoleD ? 'D' : '.',
-                    HexStr(scriptPubKey).substr(0, 30));
+                    sdest);
         case POLICY_CHANGE:
-            return strprintf("CTxOut(fPrmnt=%s, nType=%u, nParam=%u, scriptPubKey=%s)",
+            return strprintf("CTxOut(fPrmnt=%s, nType=%u, nParam=%u, dest=%s)",
                     nPolicy.fPrmnt ? "permanent" : "provisional",
                     nPolicy.nType, nPolicy.nParam,
-                    HexStr(scriptPubKey).substr(0, 30));
+                    sdest);
+        case UNINITIALIZED:
+            return strprintf("CTxOut(Uninitialized)");
         default:
             return strprintf("CTxOut(Invalid tx type: %u)", nTxType);
     }
@@ -193,6 +179,7 @@ CAmount CTransaction::GetValueOut() const
             if (!MoneyRange(tx_out.nValue) || !MoneyRange(nValueOut))
                 throw std::runtime_error(std::string(__func__) + ": value out of range");
 	    }
+        else tx_out.Check(__func__, __LINE__); // FIXME
     }
     return nValueOut;
 }
