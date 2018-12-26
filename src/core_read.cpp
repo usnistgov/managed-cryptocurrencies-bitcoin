@@ -116,6 +116,7 @@ bool DecodeHexTx(CMutableTransaction& tx, const std::string& hex_tx, bool try_no
 
     std::vector<unsigned char> txData(ParseHex(hex_tx));
 
+    std::cerr << std::string(__func__) + ":" + std::to_string(__LINE__) + "> " + hex_tx << std::endl; // FIXME
     if (try_no_witness) {
         CDataStream ssData(txData, SER_NETWORK, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS);
         try {
@@ -123,7 +124,8 @@ bool DecodeHexTx(CMutableTransaction& tx, const std::string& hex_tx, bool try_no
             if (ssData.eof() && (!try_witness || CheckTxScriptsSanity(tx))) {
                 return true;
             }
-        } catch (const std::exception&) {
+        } catch (const std::exception& e) {
+            throw std::ios_base::failure(std::string(__func__) + ":" + std::to_string(__LINE__) + "> " + e.what()); // FIXME
             // Fall through.
         }
     }
@@ -135,7 +137,8 @@ bool DecodeHexTx(CMutableTransaction& tx, const std::string& hex_tx, bool try_no
             if (ssData.empty()) {
                 return true;
             }
-        } catch (const std::exception&) {
+        } catch (const std::exception& e) {
+            throw std::ios_base::failure(std::string(__func__) + ":" + std::to_string(__LINE__) + "> " + e.what()); // FIXME
             // Fall through.
         }
     }

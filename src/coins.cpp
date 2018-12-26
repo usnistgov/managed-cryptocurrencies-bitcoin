@@ -114,6 +114,7 @@ void CCoinsViewCache::AddCoin(const COutPoint &outpoint, Coin&& coin, bool possi
     it->second.coin = std::move(coin);
     it->second.flags |= CCoinsCacheEntry::DIRTY | (fresh ? CCoinsCacheEntry::FRESH : 0);
     cachedCoinsUsage += it->second.coin.DynamicMemoryUsage();
+    std::cout << __func__ << ":" << __LINE__ << "> INSERTED: " << it->second.coin.out.ToString() << std::endl;  // FIXME
 }
 
 void AddCoins(CCoinsViewCache& cache, const CTransaction &tx, int nHeight, bool check) {
@@ -131,11 +132,6 @@ bool CCoinsViewCache::SpendCoin(const COutPoint &outpoint, Coin* moveout) {
     CCoinsMap::iterator it = FetchCoin(outpoint);
     if (it == cacheCoins.end()) return false;
     cachedCoinsUsage -= it->second.coin.DynamicMemoryUsage();
-    // If policy or role change mode, pretend we spent the transaction but don't erase it.
-/*    if(it->second.coin.out.nTxType == CTxOut::ROLE_CHANGE || it->second.coin.out.nTxType == CTxOut::POLICY_CHANGE) {
-        moveout = nullptr;
-        return true;
-    }*/
     if (moveout) {
         *moveout = std::move(it->second.coin);
     }
