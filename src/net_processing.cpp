@@ -5,11 +5,15 @@
 
 #include <net_processing.h>
 
+//#include <accounts/data.h>
+#include <accounts/db.h>
 #include <addrman.h>
 #include <arith_uint256.h>
 #include <blockencodings.h>
+#include <base58.h>
 #include <chainparams.h>
 #include <consensus/validation.h>
+#include <core_io.h>
 #include <hash.h>
 #include <init.h>
 #include <validation.h>
@@ -813,9 +817,62 @@ void PeerLogicValidation::BlockConnected(const std::shared_ptr<const CBlock>& pb
     LOCK(g_cs_orphans);
 
     std::vector<uint256> vOrphanErase;
+    const Consensus::Params& consensusParams = Params().GetConsensus();
 
     for (const CTransactionRef& ptx : pblock->vtx) {
         const CTransaction& tx = *ptx;
+
+        switch(tx.nVersion) {
+            case CTransaction::VERSION_ROLE_CHANGE_FEE:
+                // FIXME vout is offset by 1 for fees
+                break;
+            case CTransaction::VERSION_ROLE_CHANGE:
+                // Genesis block processing is slightly different
+                if(pblock->GetHash() == consensusParams.hashGenesisBlock) {
+                    // Browse all vouts
+                    for(unsigned int i = 0; i < tx.vout.size(); ++i) {
+                        const CTxOut& vout = tx.vout[i];
+                        CTxDestination accountAddress;
+
+                        if(!ExtractDestination(vout.scriptPubKey, accountAddress)) {
+                            break;
+                        }
+
+                        CManagedAccountData accountData;
+                        CManagedAccountDB accountDB;
+
+                        accountDB.UpdateAccount(accountAddress, accountData);
+                    }
+                    break;
+                }
+
+                // Default block processing
+                CTxDestination parentAddress;
+                if (!ExtractDestination(tx.vout[0].scriptPubKey, parentAddress)) break;
+
+                // Browse vouts from index 1 (index 0 is manager roles being forwarded)
+                for(unsigned int i = 1; i < tx.vout.size(); ++i) {
+                    const CTxOut& vout = tx.vout[i];
+                    CTxDestination accountAddress;
+
+                    if(!ExtractDestination(vout.scriptPubKey, accountAddress)) {
+                        break;
+                    }
+
+                    CManagedAccountData accountData (0, parentAddress);
+                    CManagedAccountDB accountDB;
+
+                    accountDB.UpdateAccount(accountAddress, accountData);
+                }
+                break;
+            // Account table does not need any update for these transactions
+            case CTransaction::VERSION_POLICY_CHANGE_FEE:
+            case CTransaction::VERSION_POLICY_CHANGE:
+            case CTransaction::VERSION_COINBASE_TRANSFER:
+            case CTransaction::VERSION_COIN_TRANSFER:
+            default:
+                break;
+        }
 
         // Which orphan pool entries must we evict?
         for (const auto& txin : tx.vin) {
