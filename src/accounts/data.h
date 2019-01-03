@@ -3,6 +3,9 @@
 #ifndef BITCOIN_ACCOUNT_H
 #define BITCOIN_ACCOUNT_H
 
+#include <core_io.h>
+#include <univalue.h>
+#include <utilmoneystr.h>
 #include <script/standard.h>
 #include <key.h>
 #include <stdint.h>
@@ -16,26 +19,26 @@ class CManagedAccountData {
 public:
     CManagedAccountData() {}
 
-    CManagedAccountData(int roles)
+    CManagedAccountData(CRoleChangeMode roles)
     {
         accountRoles = roles;
     }
 
-    CManagedAccountData(int roles, CTxDestination parent)
+    CManagedAccountData(CRoleChangeMode roles, CTxDestination parent)
     {
         accountRoles = roles;
         accountParent = parent;
     }
 
     bool AddChildren(CTxDestination child);
-    int GetRoles();
+    CRoleChangeMode GetRoles();
     CTxDestination GetParent();
     std::vector <CTxDestination> GetChildren();
 
 
     friend std::ostream & operator << (std::ostream &out, const CManagedAccountData &obj)
     {
-        out << std::to_string(obj.GetRoles()) << ";" << EncodeDestination(obj.GetParent()) << ";";
+        out << ValueFromRoles(obj.GetRoles()).get_str() << ";" << EncodeDestination(obj.GetParent()) << ";";
 
         for(int i=0; i<obj.GetChildren().size(); i++) {
             out << EncodeDestination(obj.GetChildren().at(i));
@@ -62,13 +65,13 @@ public:
 
         boost::split(accountData, accountObjRaw, [](char c){return c == ';';});
 
-        obj.accountRoles = std::stoi(accountData[0]);
+        ParseRoles(accountData[0], obj.accountRoles);
         obj.accountParent = DecodeDestination(accountData[1]);
 
         return in;
     }
 private:
-    int accountRoles;
+    CRoleChangeMode accountRoles;
     CTxDestination accountParent;
     std::vector <CTxDestination> accountChildren;
 };

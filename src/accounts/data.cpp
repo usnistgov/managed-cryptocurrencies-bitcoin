@@ -17,7 +17,7 @@ std::vector<CTxDestination> CManagedAccountData::GetChildren()
     return {};
 }
 
-int CManagedAccountData::GetRoles()
+CRoleChangeMode CManagedAccountData::GetRoles()
 {
     return accountRoles;
 }

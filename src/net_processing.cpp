@@ -827,6 +827,7 @@ void PeerLogicValidation::BlockConnected(const std::shared_ptr<const CBlock>& pb
                 // FIXME vout is offset by 1 for fees
                 break;
             case CTransaction::VERSION_ROLE_CHANGE:
+                // FIXME check if factorization is possible
                 // Genesis block processing is slightly different
                 if(pblock->GetHash() == consensusParams.hashGenesisBlock) {
                     // Browse all vouts
@@ -838,7 +839,7 @@ void PeerLogicValidation::BlockConnected(const std::shared_ptr<const CBlock>& pb
                             break;
                         }
 
-                        CManagedAccountData accountData;
+                        CManagedAccountData accountData(vout.nRole);
                         CManagedAccountDB accountDB;
 
                         accountDB.UpdateAccount(accountAddress, accountData);
@@ -859,7 +860,7 @@ void PeerLogicValidation::BlockConnected(const std::shared_ptr<const CBlock>& pb
                         break;
                     }
 
-                    CManagedAccountData accountData (0, parentAddress);
+                    CManagedAccountData accountData (vout.nRole, parentAddress);
                     CManagedAccountDB accountDB;
 
                     accountDB.UpdateAccount(accountAddress, accountData);

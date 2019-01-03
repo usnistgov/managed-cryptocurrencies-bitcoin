@@ -16,10 +16,14 @@ bool CManagedAccountDB::AddAccount(CTxDestination address, CManagedAccountData a
 }
 
 bool CManagedAccountDB::UpdateAccount(CTxDestination address, CManagedAccountData account) {
-    std::cout << __func__ << ":" << __LINE__ << "> Updating node: " << EncodeDestination(address) << std::endl;  // FIXME
-    std::cout << __func__ << ":" << __LINE__ << ">   Parent: " << std::endl;  // FIXME
-    std::cout << __func__ << ":" << __LINE__ << ">    Roles: " << std::endl;  // FIXME
-    std::cout << __func__ << ":" << __LINE__ << "> ~~~~~~ " << std::endl;  // FIXME
+    // FIXME improve logging
+    std::cout << __func__ << ":" << __LINE__ << "> Updating node: " << EncodeDestination(address) << std::endl;
+    std::cout << __func__ << ":" << __LINE__ << ">   Parent: " ;
+    std::cout << (IsValidDestination(account.GetParent())? EncodeDestination(account.GetParent()) : "-none-");
+    std::cout << std::endl;
+    std::cout << __func__ << ":" << __LINE__ << ">    Roles: ";
+    std::cout << ValueFromRoles(account.GetRoles()).get_str() << std::endl;
+    std::cout << __func__ << ":" << __LINE__ << "> ~~~~~~ " << std::endl;
 
     if(accountDB.find(address) == accountDB.end()) {
         return AddAccount(address, account);
