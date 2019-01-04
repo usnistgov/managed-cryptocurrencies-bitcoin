@@ -28,7 +28,9 @@ public:
 
     bool DeleteAccount(CTxDestination address);
 
-    bool GetAccountByAddress(CTxDestination address);
+    CTxDestination GetRootAddress();
+
+    bool GetAccountByAddress(CTxDestination address, CManagedAccountData& account);
 
     bool ExistsAccountForAddress(CTxDestination address);
 
@@ -40,6 +42,7 @@ private:
 
     // Class attributes
     std::map <CTxDestination, CManagedAccountData> accountDB;
+    CTxDestination rootAccountAddress;
     const std::string dbFilePath = GetDataDir().string() + "/accounts.dat";
 };
 

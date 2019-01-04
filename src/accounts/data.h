@@ -30,12 +30,14 @@ public:
         accountParent = parent;
     }
 
-    bool AddChildren(CTxDestination child);
+    bool AddChild(CTxDestination child);
     CRoleChangeMode GetRoles();
     CTxDestination GetParent();
     std::vector <CTxDestination> GetChildren();
 
+    std::string ToString();
 
+    // Serialization methods
     friend std::ostream & operator << (std::ostream &out, const CManagedAccountData &obj)
     {
         out << ValueFromRoles(obj.GetRoles()).get_str() << ";" << EncodeDestination(obj.GetParent()) << ";";
@@ -65,8 +67,17 @@ public:
 
         boost::split(accountData, accountObjRaw, [](char c){return c == ';';});
 
-        ParseRoles(accountData[0], obj.accountRoles);
-        obj.accountParent = DecodeDestination(accountData[1]);
+        ParseRoles(accountData.at(0), obj.accountRoles);
+        obj.accountParent = DecodeDestination(accountData.at(1));
+
+        if(accountData.at(2) != "") {
+            std::vector<std::string> accountChildrenRaw;
+            boost::split(accountChildrenRaw, accountData.at(2), [](char c){return c == '|';});
+
+            for(int i=0; i<accountChildrenRaw.size(); i++) {
+                obj.AddChild(DecodeDestination(accountChildrenRaw.at(i)));
+            }
+        }
 
         return in;
     }

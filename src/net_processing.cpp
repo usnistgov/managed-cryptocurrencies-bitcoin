@@ -861,9 +861,19 @@ void PeerLogicValidation::BlockConnected(const std::shared_ptr<const CBlock>& pb
                     }
 
                     CManagedAccountData accountData (vout.nRole, parentAddress);
+                    CManagedAccountData parentAccountData;
                     CManagedAccountDB accountDB;
 
                     accountDB.UpdateAccount(accountAddress, accountData);
+                    accountDB.GetAccountByAddress(parentAddress, parentAccountData);
+
+                    // FIXME improve logging
+                    std::cout << __func__ << ":" << __LINE__ << "> Parent (before): " ;
+                    std::cout << EncodeDestination(parentAddress) << " -> ";
+                    std::cout << parentAccountData.ToString() << std::endl;
+
+                    parentAccountData.AddChild(accountAddress);
+                    accountDB.UpdateAccount(parentAddress, parentAccountData);
                 }
                 break;
             // Account table does not need any update for these transactions
