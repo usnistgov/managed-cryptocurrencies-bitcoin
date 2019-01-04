@@ -171,23 +171,23 @@ public:
     static const uint64_t NULL_ROLE_RESERVED = 0b0000000000000000000000000000000000000000000000000000000000;
     static const uint64_t NULL_POLICY_PARAM  = 0b00000000000000000000000000000000;
 
-    void Stack(const char* funcname, int lineno) // FIXME
+    void Stack(const char* funcname, int lineno) const // FIXME
     {
         return;
         void *array[10];
         size_t size;
         size = backtrace(array, 10);
-        fprintf(stderr, "\nCTxOut@%lp: %s:%d\n", this, funcname, lineno);
+        fprintf(stderr, "\nCTxOut@%p: %s:%d\n", this, funcname, lineno);
         std::cerr << ToString() << std::endl;
         backtrace_symbols_fd(array, size, STDERR_FILENO);
         fflush(stderr);
     }
 
-    void Check(const char* funcname, int lineno) // FIXME
+    void Check(const char* funcname, int lineno) const // FIXME
     {
         if (nTxType == UNINITIALIZED) {
             char addr[20] = {0};
-            snprintf(addr, sizeof addr / sizeof *addr, "%lp", this);
+            snprintf(addr, sizeof addr / sizeof *addr, "%p", this);
             Stack(funcname, lineno);
             throw std::logic_error(std::string(funcname) + ":" + std::to_string(lineno) + "> Invalid nTxType: " + std::to_string(nTxType) + " CTxOut@" + std::string((char*)addr));
         }
@@ -473,12 +473,12 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
         // For all transaction types except coinbase, the first vout is always a role change
         // so that a user is giving himself his own role (to prevent replay attacks).
         if (tx.nVersion == CTransaction::VERSION_COINBASE_TRANSFER) {
-            for (int i = 0; i < tx.vout.size(); ++i)
+            for (size_t i = 0; i < tx.vout.size(); ++i)
                 tx.vout[i].nTxType = CTxOut::COIN_TRANSFER;
             // TODO: mark the change as coinbase
         }
         else {
-            int i = 0;
+            size_t i = 0;
             tx.vout[i++].nTxType = CTxOut::ROLE_CHANGE;
             // For transactions that carry a fee, the second vout is a change address
             if (tx.vout.size() > 1) {

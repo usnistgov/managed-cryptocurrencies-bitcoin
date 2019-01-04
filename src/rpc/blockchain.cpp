@@ -841,17 +841,17 @@ case CTxOut::COIN_TRANSFER:
 	break;
 case CTxOut::ROLE_CHANGE:
 	std::cout << "\t" << __func__ << " vout index=" << output.first+1 << " nRole=";
-	std::cout << output.second.out.nRole.fRoleM ? 'M' : '.';
-	std::cout << output.second.out.nRole.fRoleC ? 'C' : '.';
-	std::cout << output.second.out.nRole.fRoleL ? 'L' : '.';
-	std::cout << output.second.out.nRole.fRoleR ? 'R' : '.';
-	std::cout << output.second.out.nRole.fRoleA ? 'A' : '.';
-	std::cout << output.second.out.nRole.fRoleD ? 'D' : '.';
+	std::cout << (output.second.out.nRole.fRoleM ? 'M' : '.');
+	std::cout << (output.second.out.nRole.fRoleC ? 'C' : '.');
+	std::cout << (output.second.out.nRole.fRoleL ? 'L' : '.');
+	std::cout << (output.second.out.nRole.fRoleR ? 'R' : '.');
+	std::cout << (output.second.out.nRole.fRoleA ? 'A' : '.');
+	std::cout << (output.second.out.nRole.fRoleD ? 'D' : '.');
 	std::cout << std::endl;
 	break;
 case CTxOut::POLICY_CHANGE:
 	std::cout << "\t" << __func__ << " vout index=" << output.first+1 << " nPolicy=";
-	std::cout << output.second.out.nPolicy.fPrmnt ? "Perm" : "Temp";
+	std::cout << (output.second.out.nPolicy.fPrmnt ? "Perm" : "Temp");
 	std::cout << ':';
 	std::cout << output.second.out.nPolicy.nType;
 	std::cout << ':';

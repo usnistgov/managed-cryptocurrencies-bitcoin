@@ -350,7 +350,7 @@ public:
             if (vAvail[i])
                 ::Unserialize(s, REF(CTxOutCompressor(vout[i])));
         }
-        for (int i = 0; i < vout.size(); ++i) { // FIXME
+        for (size_t i = 0; i < vout.size(); ++i) { // FIXME
             vout[i].Check(__func__, __LINE__);
         }
         // coinbase height

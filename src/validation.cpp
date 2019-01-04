@@ -1062,6 +1062,10 @@ bool GetTransaction(const uint256& hash, CTransactionRef& txOut, const Consensus
 
         if (fAllowSlow) { // use coin database to locate block that contains transaction, and scan it
             const Coin& coin = AccessByTxid(*pcoinsTip, hash);
+	    std::stringstream ss;
+	    ss << " view=" << pcoinsTip.get();
+            //throw std::ios_base::failure(std::string(__func__) + ":" + std::to_string(__LINE__) + std::string("> tx=") + hash.ToString() + std::string(" block=") + hashBlock.ToString() + std::string(" slow=") + std::to_string(fAllowSlow) + std::string(" coin=") + coin.out.ToString() + std::string(" coinbase=") + std::to_string(coin.fCoinBase) + ss.str()); // FIXME
+	    std::cout << std::string(__func__) + ":" + std::to_string(__LINE__) + std::string("> tx=") + hash.ToString() + std::string(" block=") + hashBlock.ToString() + std::string(" slow=") + std::to_string(fAllowSlow) + std::string(" coin=") + coin.out.ToString() + std::string(" coinbase=") + std::to_string(coin.fCoinBase) + ss.str() << std::endl; // FIXME
             if (!coin.IsSpent()) pindexSlow = chainActive[coin.nHeight];
         }
     }
@@ -1078,6 +1082,9 @@ bool GetTransaction(const uint256& hash, CTransactionRef& txOut, const Consensus
             }
         }
     }
+
+    // throw std::ios_base::failure(std::string(__func__) + ":" + std::to_string(__LINE__) + std::string("> tx=") + hash.ToString() + std::string(" block=") + hashBlock.ToString() + std::string(" slow=") + std::to_string(fAllowSlow)); // FIXME
+    std::cout << std::string(__func__) + ":" + std::to_string(__LINE__) + std::string("> tx=") + hash.ToString() + std::string(" block=") + hashBlock.ToString() + std::string(" slow=") + std::to_string(fAllowSlow) << std::endl; // FIXME
 
     return false;
 }

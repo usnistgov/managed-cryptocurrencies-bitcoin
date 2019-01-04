@@ -364,7 +364,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
         // FIXME Get the address from this vin and check if it's the same in the following vins
     }
 
-    int i = 1; // Start collecting fees at the second vin since the first vin is a role for most tx
+    size_t i = 1; // Start collecting fees at the second vin since the first vin is a role for most tx
     switch (tx.nVersion)
     {
         case CTransaction::VERSION_ROLE_CHANGE:
@@ -375,7 +375,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
             return true;
         case CTransaction::VERSION_COINBASE_TRANSFER:
             i = 0; // Start collecting fees at the first vin since there is not role vin for this type of tx
-            [[fallthrough]];
+            // Fallthrough
         case CTransaction::VERSION_COIN_TRANSFER:
         case CTransaction::VERSION_ROLE_CHANGE_FEE:
         case CTransaction::VERSION_POLICY_CHANGE_FEE:
