@@ -115,7 +115,7 @@ bool ParseRoles(const char* pszIn, CRoleChangeMode& nRet)
         roles.fRoleD = (*p++ == 'D');
     else
         return false;
-    roles.nReserved = CTxOut::NULL_ROLE_RESERVED;
+    roles.nReserved = CRoleChangeMode::NULL_ROLE_RESERVED;
 
     nRet = roles;
     return true;

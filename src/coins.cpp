@@ -103,11 +103,11 @@ void CCoinsViewCache::EraseOldRole(Coin& coin) {
         cachedCoinsUsage -= it->second.coin.DynamicMemoryUsage();
         if (it->second.flags & CCoinsCacheEntry::FRESH) {
             it = cacheCoins.erase(it);
-		return;
+            return;
         } else {
             it->second.flags |= CCoinsCacheEntry::DIRTY;
             it->second.coin.Clear();
-		break;
+            break;
         }
     }
     std::cout << __func__ << ":" << __LINE__ << "> base=" << typeid(base).name() << " " << (void*)base << std::endl; // FIXME

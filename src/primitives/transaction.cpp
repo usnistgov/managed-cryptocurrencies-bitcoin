@@ -71,7 +71,7 @@ CTxOut::CTxOut(
     nRole.fRoleR = fRoleRIn;
     nRole.fRoleA = fRoleAIn;
     nRole.fRoleD = fRoleDIn;
-    nRole.nReserved = NULL_ROLE_RESERVED;
+    nRole.nReserved = CRoleChangeMode::NULL_ROLE_RESERVED;
     scriptPubKey = scriptPubKeyIn;
     Stack(__func__, __LINE__);
 }
@@ -206,3 +206,4 @@ std::string CTransaction::ToString() const
         str += "    " + tx_out.ToString() + "\n";
     return str;
 }
+

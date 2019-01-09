@@ -133,12 +133,38 @@ struct CRoleChangeMode {
     uint64_t fRoleC :1;
     uint64_t fRoleM :1;
     uint64_t nReserved :58;
+
+    static const uint64_t NULL_ROLE_RESERVED = 0b0000000000000000000000000000000000000000000000000000000000;
+
+    CRoleChangeMode() :
+        fRoleD(false),
+        fRoleA(false),
+        fRoleR(false),
+        fRoleL(false),
+        fRoleC(false),
+        fRoleM(false),
+        nReserved(NULL_ROLE_RESERVED) {};
+
+    friend bool operator==(const CRoleChangeMode& a, const CRoleChangeMode& b)
+    {
+        return
+            a.fRoleD == b.fRoleD &&
+            a.fRoleA == b.fRoleA &&
+            a.fRoleR == b.fRoleR &&
+            a.fRoleL == b.fRoleL &&
+            a.fRoleC == b.fRoleC &&
+            a.fRoleM == b.fRoleM &&
+            a.nReserved == b.nReserved;
+    };
+
 };
 
 struct CPolicyChangeMode {
     uint64_t fPrmnt :1;
     uint64_t nType  :31;
     uint64_t nParam :32;
+
+    static const uint64_t NULL_POLICY_PARAM  = 0b00000000000000000000000000000000;
 };
 
 #include <stdio.h> // FIXME
@@ -167,9 +193,6 @@ public:
         ROLE_CHANGE   = 2,
         POLICY_CHANGE = 3,
     } nTxType;
-
-    static const uint64_t NULL_ROLE_RESERVED = 0b0000000000000000000000000000000000000000000000000000000000;
-    static const uint64_t NULL_POLICY_PARAM  = 0b00000000000000000000000000000000;
 
     void Stack(const char* funcname, int lineno) const // FIXME
     {
