@@ -1,3 +1,4 @@
+// Copyright (c) 2018-2019 National Institute of Standards and Technology
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #ifndef BITCOIN_ACCOUNT_H
@@ -31,6 +32,7 @@ public:
     }
 
     bool AddChild(CTxDestination child);
+    bool RemoveChild(CTxDestination child);
     CRoleChangeMode GetRoles();
     CTxDestination GetParent();
     std::vector <CTxDestination> GetChildren();

@@ -1,3 +1,4 @@
+// Copyright (c) 2018-2019 National Institute of Standards and Technology
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #include <accounts/data.h>
@@ -9,6 +10,16 @@ bool CManagedAccountData::AddChild(CTxDestination child)
         return true;
     } else {
         return false;
+    }
+}
+
+bool CManagedAccountData::RemoveChild(CTxDestination child)
+{
+    if(std::find(accountChildren.begin(), accountChildren.end(), child) == accountChildren.end()) {
+        return false;
+    } else {
+        std::remove(accountChildren.begin(), accountChildren.end(), child);
+        return true;
     }
 }
 

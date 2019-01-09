@@ -1,5 +1,4 @@
-// Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2017 The Bitcoin Core developers
+// Copyright (c) 2018-2019 National Institute of Standards and Technology
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -61,6 +60,28 @@ bool CManagedAccountDB::GetAccountByAddress(CTxDestination address, CManagedAcco
 
 bool CManagedAccountDB::ExistsAccountForAddress(CTxDestination address) {
     return (accountDB.find(address) != accountDB.end());
+}
+
+
+int CManagedAccountDB::size() {
+    return accountDB.size();
+}
+
+void CManagedAccountDB::ResetDB() {
+    accountDB = std::map<CTxDestination, CManagedAccountData>();
+    SaveToDisk();
+}
+
+void CManagedAccountDB::InitDB() {
+    // Check if file exists at initialization
+    struct stat buffer;
+    if(stat (dbFilePath.c_str(), &buffer) == 0) {
+        std::cout << __func__ << ":" << __LINE__ << "> Loading DB from disk" << std::endl;  // FIXME
+        LoadFromDisk();
+    } else {  // File does not exist, a new map is initialized
+        std::cout << __func__ << ":" << __LINE__ << "> Init empty DB" << std::endl;  // FIXME
+        accountDB = std::map<CTxDestination, CManagedAccountData>();
+    }
 }
 
 // Serialization methods

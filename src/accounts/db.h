@@ -1,3 +1,4 @@
+// Copyright (c) 2018-2019 National Institute of Standards and Technology
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #ifndef BITCOIN_ACCOUNT_DB_H
@@ -11,31 +12,25 @@
 class CManagedAccountDB {
 public:
     CManagedAccountDB() {
-        // Check if file exists at initialization
-        struct stat buffer;
-        if(stat (dbFilePath.c_str(), &buffer) == 0) {
-            std::cout << __func__ << ":" << __LINE__ << "> Loading DB from disk" << std::endl;  // FIXME
-            LoadFromDisk();
-        } else {  // File does not exist, a new map is initialized
-            std::cout << __func__ << ":" << __LINE__ << "> Init empty DB" << std::endl;  // FIXME
-            accountDB = std::map<CTxDestination, CManagedAccountData>();
-        }
+        InitDB();
     }
 
+    CManagedAccountDB(std::string filePath) {
+        dbFilePath = filePath;
+        InitDB();
+    }
+
+    void ResetDB();
     bool AddAccount(CTxDestination address, CManagedAccountData account);
-
     bool UpdateAccount(CTxDestination address, CManagedAccountData account);
-
     bool DeleteAccount(CTxDestination address);
-
     CTxDestination GetRootAddress();
-
     bool GetAccountByAddress(CTxDestination address, CManagedAccountData& account);
-
     bool ExistsAccountForAddress(CTxDestination address);
-
-
+    int size();
 private:
+    void InitDB();
+
     // Serialization methods
     void SaveToDisk();
     void LoadFromDisk();
@@ -43,7 +38,7 @@ private:
     // Class attributes
     std::map <CTxDestination, CManagedAccountData> accountDB;
     CTxDestination rootAccountAddress;
-    const std::string dbFilePath = GetDataDir().string() + "/accounts.dat";
+    std::string dbFilePath = GetDataDir().string() + "/accounts.dat";
 };
 
 #endif // BITCOIN_ACCOUNT_DB_H
