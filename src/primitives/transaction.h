@@ -220,7 +220,6 @@ public:
     {
         nTxType = UNINITIALIZED;
         SetNull();
-        Stack(__func__, __LINE__); // FIXME
     }
 
     CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn);

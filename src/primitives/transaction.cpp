@@ -52,7 +52,6 @@ CTxOut::CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn)
     nTxType = COIN_TRANSFER;
     nValue = nValueIn;
     scriptPubKey = scriptPubKeyIn;
-    Stack(__func__, __LINE__);
 }
 
 CTxOut::CTxOut(
@@ -73,7 +72,6 @@ CTxOut::CTxOut(
     nRole.fRoleD = fRoleDIn;
     nRole.nReserved = CRoleChangeMode::NULL_ROLE_RESERVED;
     scriptPubKey = scriptPubKeyIn;
-    Stack(__func__, __LINE__);
 }
 
 CTxOut::CTxOut(const CRoleChangeMode& nRolesIn, CScript scriptPubKeyIn)
@@ -81,7 +79,6 @@ CTxOut::CTxOut(const CRoleChangeMode& nRolesIn, CScript scriptPubKeyIn)
     nTxType = ROLE_CHANGE;
     nRole = nRolesIn;
     scriptPubKey = scriptPubKeyIn;
-    Stack(__func__, __LINE__);
 }
 
 CTxOut::CTxOut(
@@ -95,7 +92,6 @@ CTxOut::CTxOut(
     nPolicy.nType  = nTypeIn;
     nPolicy.nParam = nParamIn;
     scriptPubKey = scriptPubKeyIn;
-    Stack(__func__, __LINE__);
 }
 
 void CTxOut::SetNull()

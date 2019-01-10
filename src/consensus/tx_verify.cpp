@@ -245,23 +245,32 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
  * @param nRole
  * @return
  */
-bool isValidRole(const CRoleChangeMode& nRole) {
+bool isValidRoleIn(const CRoleChangeMode& nRoleIn)
+{
     // Account must be registered and not disabled
-    if(!nRole.fRoleR || nRole.fRoleD) {
+    if(!nRoleIn.fRoleR || nRoleIn.fRoleD) {
         return false;
     }
 
     // Account must only have one role
-    if(nRole.fRoleM && !nRole.fRoleC && !nRole.fRoleL && !nRole.fRoleA) {
+    if (nRoleIn.fRoleM && !nRoleIn.fRoleC && !nRoleIn.fRoleL && !nRoleIn.fRoleA) {
+        // Role M+R only
         return true;
     }
-    if(nRole.fRoleC && !nRole.fRoleM && !nRole.fRoleL && !nRole.fRoleA) {
+    if (nRoleIn.fRoleC && !nRoleIn.fRoleM && !nRoleIn.fRoleL && !nRoleIn.fRoleA) {
+        // Role C+R only
         return true;
     }
-    if(nRole.fRoleL && !nRole.fRoleC && !nRole.fRoleM && !nRole.fRoleA) {
+    if (nRoleIn.fRoleL && !nRoleIn.fRoleC && !nRoleIn.fRoleM && !nRoleIn.fRoleA) {
+        // Role L+R only
         return true;
     }
-    if(nRole.fRoleA && !nRole.fRoleC && !nRole.fRoleL && !nRole.fRoleM) {
+    if (nRoleIn.fRoleA && !nRoleIn.fRoleC && !nRoleIn.fRoleL && !nRoleIn.fRoleM) {
+        // Role A+R only
+        return true;
+    }
+    if (!nRoleIn.fRoleM && !nRoleIn.fRoleC && !nRoleIn.fRoleL && !nRoleIn.fRoleA) {
+        // Role R only
         return true;
     }
 
@@ -269,19 +278,22 @@ bool isValidRole(const CRoleChangeMode& nRole) {
     return false;
 }
 
-bool isAuthorizedRCM(const CRoleChangeMode& inRole, const CRoleChangeMode& outRole) {
+bool isAuthorizedRCM(const CRoleChangeMode& inRole, const CRoleChangeMode& outRole)
+{
+    // TODO: retrieve the old role if any to calculate the delta between the old roles and the new
+
     // Managers (M role) can perform any role change.
-    if(inRole.fRoleM) {
+    if (inRole.fRoleM) {
         return true;
     }
 
     // Account managers (A role) can register users.
-    if(outRole.fRoleR && inRole.fRoleA) {
+    if (outRole.fRoleR && inRole.fRoleA) {
         return true;
     }
 
     // Law enforcement (L role) can disable accounts.
-    if(outRole.fRoleD && inRole.fRoleL) {
+    if (outRole.fRoleD && inRole.fRoleL) {
         return true;
     }
 
@@ -297,28 +309,30 @@ bool isAuthorizedRCM(const CRoleChangeMode& inRole, const CRoleChangeMode& outRo
  * @param txVouts
  * @return
  */
-bool isAuthorized(int32_t nVersion, const CRoleChangeMode& inRole, const std::vector<CTxOut>& txVouts) {
+bool isAuthorized(int32_t nVersion, const CRoleChangeMode& inRole, const std::vector<CTxOut>& txVouts)
+{
     // Check role validity
-    if(!isValidRole(inRole)) {
+    if (!isValidRoleIn(inRole)) {
         return false;
-
     }
 
     // Managers can perform anything (validity check made sure that they are registered and not disabled)
-    if(inRole.fRoleM) {
+    if (inRole.fRoleM) {
         return true;
     }
 
-    switch(nVersion) {
+    switch(nVersion)
+    {
         case CTransaction::VERSION_COINBASE_TRANSFER:
             // TODO
             break;
         case CTransaction::VERSION_COIN_TRANSFER:
-            // TODO
-            break;
+            // The sender needs at least role R, but it's already checked for in isValidRoleIn
+            return true;
         case CTransaction::VERSION_ROLE_CHANGE:
-            // Check each vout to ensure correct vin role.
+            // Check each vout to ensure correct vin role
             for(const CTxOut& vout: txVouts) {
+                
                 if(!isAuthorizedRCM(inRole, vout.nRole)) {
                     return false;
                 }
@@ -330,7 +344,7 @@ bool isAuthorized(int32_t nVersion, const CRoleChangeMode& inRole, const std::ve
             for(unsigned int i = 1; i < txVouts.size(); ++i) {
                 const CTxOut& vout = txVouts[i];
 
-                if(!isAuthorizedRCM(inRole, vout.nRole)) {
+                if (!isAuthorizedRCM(inRole, vout.nRole)) {
                     return false;
                 }
             }

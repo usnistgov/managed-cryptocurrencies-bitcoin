@@ -25,9 +25,7 @@ bool CCoinsView::HaveCoin(const COutPoint &outpoint) const
     return GetCoin(outpoint, coin);
 }
 
-CCoinsViewBacked::CCoinsViewBacked(CCoinsView *viewIn) : base(viewIn) {
-    std::cout << __func__ << ":" << __LINE__ << "> CCoinViewBacked=" << (void*)this << " viewIn=" << (void*)viewIn << std::endl;  // FIXME
-}
+CCoinsViewBacked::CCoinsViewBacked(CCoinsView *viewIn) : base(viewIn) {}
 bool CCoinsViewBacked::GetCoin(const COutPoint &outpoint, Coin &coin) const { return base->GetCoin(outpoint, coin); }
 bool CCoinsViewBacked::HaveCoin(const COutPoint &outpoint) const { return base->HaveCoin(outpoint); }
 uint256 CCoinsViewBacked::GetBestBlock() const { return base->GetBestBlock(); }
@@ -39,24 +37,19 @@ size_t CCoinsViewBacked::EstimateSize() const { return base->EstimateSize(); }
 
 SaltedOutpointHasher::SaltedOutpointHasher() : k0(GetRand(std::numeric_limits<uint64_t>::max())), k1(GetRand(std::numeric_limits<uint64_t>::max())) {}
 
-CCoinsViewCache::CCoinsViewCache(CCoinsView *baseIn) : CCoinsViewBacked(baseIn), cachedCoinsUsage(0) {
-    std::cout << __func__ << ":" << __LINE__ << "> CCoinViewCache=" << (void*)this << " baesIn=" << (void*)baseIn << std::endl;  // FIXME
-}
+CCoinsViewCache::CCoinsViewCache(CCoinsView *baseIn) : CCoinsViewBacked(baseIn), cachedCoinsUsage(0) {}
 
 size_t CCoinsViewCache::DynamicMemoryUsage() const {
     return memusage::DynamicUsage(cacheCoins) + cachedCoinsUsage;
 }
 
 CCoinsMap::iterator CCoinsViewCache::FetchCoin(const COutPoint &outpoint) const {
-//    for (CCoinsMap::iterator it = cacheCoins.begin(); it != cacheCoins.end(); ++it) // FIXME
-//        std::cout << __func__ << ":" << __LINE__ << "> " << it->second.coin.out.ToString() << " view=" << (void*)&cacheCoins << std::endl;  // FIXME
     CCoinsMap::iterator it = cacheCoins.find(outpoint);
     if (it != cacheCoins.end())
         return it;
     Coin tmp;
     if (!base->GetCoin(outpoint, tmp))
         return cacheCoins.end();
-    std::cout << __func__ << ":" << __LINE__ << "> CCoinViewCache=" << (void*)this << " txout=" << tmp.out.ToString() << std::endl;  // FIXME
     CCoinsMap::iterator ret = cacheCoins.emplace(std::piecewise_construct, std::forward_as_tuple(outpoint), std::forward_as_tuple(std::move(tmp))).first;
     if (ret->second.coin.IsSpent()) {
         // The parent only has an empty entry for this outpoint; we can consider our
@@ -82,44 +75,32 @@ bool CCoinsViewCache::GetCoin(const COutPoint &outpoint, Coin &coin) const {
 
 void CCoinsViewCache::EraseOldRole(Coin& coin) {
     CCoinsMap::iterator it;
-//        for (it = cacheCoins.begin(); it != cacheCoins.end(); ++it) // FIXME
-//            std::cout << __func__ << ":" << __LINE__ << "> " << it->second.coin.out.ToString() << " view=" << (void*)&cacheCoins << std::endl;  // FIXME
     CTxDestination dest1, dest2;
     assert(ExtractDestination(coin.out.scriptPubKey, dest1));
     for (it = cacheCoins.begin(); it != cacheCoins.end(); ++it) {
-        std::cout << __func__ << ":" << __LINE__ << "> utxo1=" << coin.out.ToString() << " utxo2.type=" << it->second.coin.out.nTxType << std::endl;  // FIXME
-        std::cout << __func__ << ":" << __LINE__ << "> utxo1=" << coin.out.ToString() << " utxo2=" << it->second.coin.out.ToString() << std::endl;  // FIXME
-        std::cout << __func__ << ":" << __LINE__ << "> coin1=" << coin.ToString() << " coin2=" << it->second.coin.ToString() << std::endl;  // FIXME
-        if (coin == it->second.coin) { std::cout << "SAME COIN!!!!!!!!!!!!!" << std::endl; continue; } // FIXME
+        if (coin == it->second.coin) continue;
 	    if (it->second.coin.IsSpent()) continue;
         if (it->second.coin.out.nTxType != CTxOut::ROLE_CHANGE) continue;
         if (!ExtractDestination(it->second.coin.out.scriptPubKey, dest2)) continue;
         if (dest1 != dest2) continue;
         // Found the old role UTXO, now delete it
-        std::stringstream ss; // FIXME
-        ss << __func__ << ":" << __LINE__ << "> utxo1=" << coin.out.ToString() << " utxo2=" << it->second.coin.out.ToString() << std::endl;  // FIXME
-        // throw std::logic_error(ss.str());
-        std::cout << ss.str() << std::endl;
         cachedCoinsUsage -= it->second.coin.DynamicMemoryUsage();
         if (it->second.flags & CCoinsCacheEntry::FRESH) {
+            std::cerr << __func__ << ":" << __LINE__ << "> FRESH: " << it->second.coin.ToString() << std::endl; // FIXME
             it = cacheCoins.erase(it);
             return;
         } else {
+            std::cerr << __func__ << ":" << __LINE__ << "> DIRTY: " << it->second.coin.ToString() << std::endl; // FIXME
             it->second.flags |= CCoinsCacheEntry::DIRTY;
             it->second.coin.Clear();
             break;
         }
     }
-    std::cout << __func__ << ":" << __LINE__ << "> base=" << typeid(base).name() << " " << (void*)base << std::endl; // FIXME
     if (base)
         ((CCoinsViewCache*)base)->EraseOldRole(coin);
 }
 
 void CCoinsViewCache::AddCoin(const COutPoint &outpoint, Coin&& coin, bool possible_overwrite) {
-    if (!coin.IsSpent()) { // FIXME
-        fprintf(stderr, "\nCCoinsViewCache::AddCoin: CTxOut=%p\n", &(coin.out));
-        std::cerr << coin.out.ToString() << std::endl;
-    }
     assert(!coin.IsSpent());
     if (coin.out.scriptPubKey.IsUnspendable()) return;
     // Erase an old role if a new one has been granted to an address
@@ -142,7 +123,6 @@ void CCoinsViewCache::AddCoin(const COutPoint &outpoint, Coin&& coin, bool possi
     it->second.coin = std::move(coin);
     it->second.flags |= CCoinsCacheEntry::DIRTY | (fresh ? CCoinsCacheEntry::FRESH : 0);
     cachedCoinsUsage += it->second.coin.DynamicMemoryUsage();
-    std::cout << __func__ << ":" << __LINE__ << "> INSERTED: " << it->second.coin.out.ToString() << " cache=" << (void*)&cacheCoins << std::endl;  // FIXME
 }
 
 void AddCoins(CCoinsViewCache& cache, const CTransaction &tx, int nHeight, bool check) {
@@ -157,7 +137,6 @@ void AddCoins(CCoinsViewCache& cache, const CTransaction &tx, int nHeight, bool 
 }
 
 bool CCoinsViewCache::SpendCoin(const COutPoint &outpoint, Coin* moveout) {
-    std::cout << __func__ << ":" << __LINE__ << "> SPENT: " << outpoint.ToString() << " cache=" << (void*)&cacheCoins << std::endl;  // FIXME
     CCoinsMap::iterator it = FetchCoin(outpoint);
     if (it == cacheCoins.end()) return false;
     cachedCoinsUsage -= it->second.coin.DynamicMemoryUsage();
