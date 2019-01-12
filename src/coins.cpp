@@ -73,6 +73,34 @@ bool CCoinsViewCache::GetCoin(const COutPoint &outpoint, Coin &coin) const {
 #include <sstream>
 #include <stdio.h>
 
+std::list<Coin> CCoinsViewCache::FetchOldRole(const Coin& coin) const {
+    CCoinsMap::iterator it;
+    CTxDestination dest1, dest2;
+    std::list<Coin> oldRoleList;
+    assert(ExtractDestination(coin.out.scriptPubKey, dest1));
+    for (it = cacheCoins.begin(); it != cacheCoins.end(); ++it) {
+        if (coin == it->second.coin) continue;
+	    if (it->second.coin.IsSpent()) continue;
+        if (it->second.coin.out.nTxType != CTxOut::ROLE_CHANGE) continue;
+        if (!ExtractDestination(it->second.coin.out.scriptPubKey, dest2)) continue;
+        if (dest1 != dest2) continue;
+        // Found the old role UTXO
+        oldRoleList.push_front(it->second.coin);
+        if (it->second.flags & CCoinsCacheEntry::FRESH) {
+            // If fresh, we're done, return the old role utxo
+            std::cerr << __func__ << ":" << __LINE__ << "> FRESH: " << it->second.coin.ToString() << std::endl; // FIXME
+            return oldRoleList;
+        } else {
+            // If dirty, fetch the utxo in the parent view
+            std::cerr << __func__ << ":" << __LINE__ << "> DIRTY: " << it->second.coin.ToString() << std::endl; // FIXME
+        }
+        break;
+    }
+    if (base)
+        oldRoleList.splice(oldRoleList.end(), ((CCoinsViewCache*)base)->FetchOldRole(coin));
+    return oldRoleList;
+}
+
 void CCoinsViewCache::EraseOldRole(Coin& coin) {
     CCoinsMap::iterator it;
     CTxDestination dest1, dest2;
@@ -86,15 +114,17 @@ void CCoinsViewCache::EraseOldRole(Coin& coin) {
         // Found the old role UTXO, now delete it
         cachedCoinsUsage -= it->second.coin.DynamicMemoryUsage();
         if (it->second.flags & CCoinsCacheEntry::FRESH) {
+            // If fresh, we're done, just delete the utxo
             std::cerr << __func__ << ":" << __LINE__ << "> FRESH: " << it->second.coin.ToString() << std::endl; // FIXME
             it = cacheCoins.erase(it);
             return;
         } else {
+            // If dirty, clear the utxo in the current view and look for it in the parent view
             std::cerr << __func__ << ":" << __LINE__ << "> DIRTY: " << it->second.coin.ToString() << std::endl; // FIXME
             it->second.flags |= CCoinsCacheEntry::DIRTY;
             it->second.coin.Clear();
-            break;
         }
+        break;
     }
     if (base)
         ((CCoinsViewCache*)base)->EraseOldRole(coin);

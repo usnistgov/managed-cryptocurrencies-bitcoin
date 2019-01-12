@@ -145,6 +145,21 @@ struct CRoleChangeMode {
         fRoleM(false),
         nReserved(NULL_ROLE_RESERVED) {};
 
+    CRoleChangeMode(
+            bool fRoleDIn,
+            bool fRoleAIn,
+            bool fRoleRIn,
+            bool fRoleLIn,
+            bool fRoleCIn,
+            bool fRoleMIn) :
+        fRoleD(fRoleDIn),
+        fRoleA(fRoleAIn),
+        fRoleR(fRoleRIn),
+        fRoleL(fRoleLIn),
+        fRoleC(fRoleCIn),
+        fRoleM(fRoleMIn),
+        nReserved(NULL_ROLE_RESERVED) {};
+
     friend bool operator==(const CRoleChangeMode& a, const CRoleChangeMode& b)
     {
         return
@@ -157,6 +172,16 @@ struct CRoleChangeMode {
             a.nReserved == b.nReserved;
     };
 
+    friend CRoleChangeMode operator^=(const CRoleChangeMode& a, const CRoleChangeMode& b)
+    {
+        return CRoleChangeMode (
+            a.fRoleD ^ b.fRoleD,
+            a.fRoleA ^ b.fRoleA,
+            a.fRoleR ^ b.fRoleR,
+            a.fRoleL ^ b.fRoleL,
+            a.fRoleC ^ b.fRoleC,
+            a.fRoleM ^ b.fRoleM);
+    };
 };
 
 struct CPolicyChangeMode {
