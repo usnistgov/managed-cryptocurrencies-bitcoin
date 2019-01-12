@@ -248,54 +248,49 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
 bool isValidRoleIn(const CRoleChangeMode& nRoleIn)
 {
     // Account must be registered and not disabled
-    if(!nRoleIn.fRoleR || nRoleIn.fRoleD) {
+    if(!nRoleIn.fRoleR || nRoleIn.fRoleD)
         return false;
-    }
 
     // Account must only have one role
-    if (nRoleIn.fRoleM && !nRoleIn.fRoleC && !nRoleIn.fRoleL && !nRoleIn.fRoleA) {
-        // Role M+R only
+    if ((int)nRoleIn.fRoleM + (int)nRoleIn.fRoleC + (int)nRoleIn.fRoleL + (int)nRoleIn.fRoleA <= 1)
         return true;
-    }
-    if (nRoleIn.fRoleC && !nRoleIn.fRoleM && !nRoleIn.fRoleL && !nRoleIn.fRoleA) {
-        // Role C+R only
-        return true;
-    }
-    if (nRoleIn.fRoleL && !nRoleIn.fRoleC && !nRoleIn.fRoleM && !nRoleIn.fRoleA) {
-        // Role L+R only
-        return true;
-    }
-    if (nRoleIn.fRoleA && !nRoleIn.fRoleC && !nRoleIn.fRoleL && !nRoleIn.fRoleM) {
-        // Role A+R only
-        return true;
-    }
-    if (!nRoleIn.fRoleM && !nRoleIn.fRoleC && !nRoleIn.fRoleL && !nRoleIn.fRoleA) {
-        // Role R only
-        return true;
-    }
 
     // By default
     return false;
 }
 
-bool isAuthorizedRCM(const CRoleChangeMode& inRole, const CRoleChangeMode& outRole)
+bool isValidRoleOut(const CRoleChangeMode& nRoleOut)
 {
-    // TODO: retrieve the old role if any to calculate the delta between the old roles and the new
-
-    // Managers (M role) can perform any role change.
-    if (inRole.fRoleM) {
+    // An emtpy role is valid
+    if (nRoleOut == CRoleChangeMode())
         return true;
-    }
+
+    // Otherwise an account must be registered
+    if(!nRoleOut.fRoleR)
+        return false;
+
+    // An account must have at most one role
+    if ((int)nRoleOut.fRoleM + (int)nRoleOut.fRoleC + (int)nRoleOut.fRoleL + (int)nRoleOut.fRoleA <= 1)
+        return true;
+
+    // By default
+    return false;
+}
+
+
+bool isAuthorizedRCM(const CRoleChangeMode& inRole, const CRoleChangeMode& roleDelta)
+{
+    // Managers (M role) can perform any role change.
+    if (inRole.fRoleM)
+        return true;
 
     // Account managers (A role) can register users.
-    if (outRole.fRoleR && inRole.fRoleA) {
+    if (roleDelta.fRoleR && inRole.fRoleA)
         return true;
-    }
 
     // Law enforcement (L role) can disable accounts.
-    if (outRole.fRoleD && inRole.fRoleL) {
+    if (roleDelta.fRoleD && inRole.fRoleL)
         return true;
-    }
 
     // By default
     return false;
@@ -344,12 +339,17 @@ bool isAuthorized(const CTransaction& tx, const CRoleChangeMode& inRole, const C
             return true;
         case CTransaction::VERSION_ROLE_CHANGE:
         case CTransaction::VERSION_ROLE_CHANGE_FEE:
+            // Check if all "payload" vouts are valid and authorized
             for(size_t i = voutPayloadIdx; i < tx.vout.size(); ++i) {
-                // Retrieve the previous role and calculate which roles have been changed
                 CRoleChangeMode roleDelta = tx.vout[i].nRole;
+                // Check that the new role set is valid
+                if (!isValidRoleOut(roleDelta))
+                    return false;
+                // Retrieve the previous role set and calculate which roles have been changed
                 auto oldRoles = inputs.FetchOldRole(Coin(tx.vout[i], 1, false));
                 if (oldRoles.size() > 0)
                     roleDelta ^= oldRoles.front().out.nRole;
+                // Check if the user changing the role set is authorized to do so
                 if (!isAuthorizedRCM(inRole, roleDelta))
                     return false;
             }
