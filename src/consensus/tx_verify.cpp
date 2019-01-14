@@ -316,19 +316,6 @@ bool isAuthorized(const CTransaction& tx, const CRoleChangeMode& inRole, const C
         return true;
     }
 
-    // Calculate where the "payload" (first vout that's not a role repeat or a change address) starts in the vout array
-    size_t voutPayloadIdx;
-    switch (tx.nVersion)
-    {
-        case CTransaction::VERSION_COIN_TRANSFER:
-        case CTransaction::VERSION_ROLE_CHANGE_FEE:
-        case CTransaction::VERSION_POLICY_CHANGE_FEE:
-            voutPayloadIdx = 2;
-            break;
-        default:
-            voutPayloadIdx = 1;
-    }
-
     switch(tx.nVersion)
     {
         case CTransaction::VERSION_COINBASE_TRANSFER:
@@ -340,7 +327,7 @@ bool isAuthorized(const CTransaction& tx, const CRoleChangeMode& inRole, const C
         case CTransaction::VERSION_ROLE_CHANGE:
         case CTransaction::VERSION_ROLE_CHANGE_FEE:
             // Check if all "payload" vouts are valid and authorized
-            for(size_t i = voutPayloadIdx; i < tx.vout.size(); ++i) {
+            for (size_t i = tx.GetPayloadOffset(); i < tx.vout.size(); ++i) {
                 CRoleChangeMode roleDelta = tx.vout[i].nRole;
                 // Check that the new role set is valid
                 if (!isValidRoleOut(roleDelta))
@@ -419,20 +406,17 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
         return state.Invalid(false, REJECT_INVALID, "bad-txns-address-mismatch");
     
     // Check that the second vout uses the vin address when a change address is used
-    // and calculate where the "payload" (first vout that's not a role repeat or a change address) starts in the vout array
-    size_t voutPayloadIdx;
     switch (tx.nVersion)
     {
         case CTransaction::VERSION_COIN_TRANSFER:
         case CTransaction::VERSION_ROLE_CHANGE_FEE:
         case CTransaction::VERSION_POLICY_CHANGE_FEE:
-            voutPayloadIdx = 2;
             assert(ExtractDestination(tx.vout[1].scriptPubKey, dest2));
             if (dest1 != dest2)
                 return state.Invalid(false, REJECT_INVALID, "bad-txns-address-mismatch");
             break;
         default:
-            voutPayloadIdx = 1;
+            break;
     }
 
     // Check the type of the following vouts
@@ -454,7 +438,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
         default:
             return state.Invalid(false, REJECT_INVALID, "bad-txns-invalid-txversion");
     }
-    for (size_t i = voutPayloadIdx; i < tx.vout.size(); ++i) {
+    for (size_t i = tx.GetPayloadOffset(); i < tx.vout.size(); ++i) {
         if (tx.vout[i].nTxType != txType)
             return state.Invalid(false, REJECT_INVALID, "bad-txns-invalid-vouttype");
     }
@@ -483,23 +467,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
     }
 
     // Check that the following vouts don't use the vin address
-    switch (tx.nVersion)
-    {
-        case CTransaction::VERSION_COINBASE_TRANSFER:
-        case CTransaction::VERSION_ROLE_CHANGE:
-        case CTransaction::VERSION_POLICY_CHANGE:
-            // These transaction types either don't have a "role repeat" (coinbase tx) or a change address (free tx)
-            voutPayloadIdx = 1;
-            break;
-        case CTransaction::VERSION_COIN_TRANSFER:
-        case CTransaction::VERSION_ROLE_CHANGE_FEE:
-        case CTransaction::VERSION_POLICY_CHANGE_FEE:
-            // These transaction types have a "role repeat" and a change address
-            voutPayloadIdx = 2;
-        default:
-            return state.Invalid(false, REJECT_INVALID, "bad-txns-invalid-txversion");
-    }
-    for (size_t i = voutPayloadIdx; i < tx.vout.size(); ++i) {
+    for (size_t i = tx.GetPayloadOffset(); i < tx.vout.size(); ++i) {
         assert(ExtractDestination(tx.vout[i].scriptPubKey, dest2));
         if (dest1 == dest2)
             return state.Invalid(false, REJECT_INVALID, "bad-txns-address-reuse");

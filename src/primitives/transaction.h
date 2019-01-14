@@ -390,6 +390,19 @@ public:
     // GetValueIn() is a method on CCoinsViewCache, because
     // inputs must be known to compute value in.
 
+    // Calculate where the "payload" (first vout that's not a role repeat or a change address) starts in the vout array
+    size_t GetPayloadOffset() const {
+        switch (nVersion)
+        {
+            case VERSION_COIN_TRANSFER:
+            case VERSION_ROLE_CHANGE_FEE:
+            case VERSION_POLICY_CHANGE_FEE:
+                return 2;
+            default:
+                return 1;
+        }
+    }
+
     /**
      * Get the total transaction size in bytes, including witness data.
      * "Total Size" defined in BIP141 and BIP144.
