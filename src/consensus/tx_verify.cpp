@@ -298,20 +298,20 @@ bool isValidRoleOut(const CRoleChangeMode& nRoleOut)
 
 bool isAuthorizedRCM(const CRoleChangeMode& inRole, const CRoleChangeMode& roleDelta)
 {
-    // Managers (M role) can perform any role change.
-    if (inRole.fRoleM)
-        return true;
-
-    // Account managers (A role) can register users.
-    if (roleDelta.fRoleR && inRole.fRoleA)
-        return true;
-
-    // Law enforcement (L role) can disable accounts.
-    if (roleDelta.fRoleD && inRole.fRoleL)
-        return true;
-
-    // By default
-    return false;
+    // Manager M privileges are required to grant/remove roles M, C, L and A
+    if (roleDelta.fRoleM || roleDelta.fRoleC || roleDelta.fRoleL || roleDelta.fRoleA)
+        if (!inRole.fRoleM)
+            return false;
+    // Manager M or Account Manager A privileges are required to grant/remove role R
+    if (roleDelta.fRoleR)
+        if (!inRole.fRoleM && !inRole.fRoleA)
+            return false;
+    // Manager M or Law Enforcement L privileges are requires to enable/disable an account
+    if (roleDelta.fRoleD)
+        if (!inRole.fRoleM && !inRole.fRoleL)
+            return false;
+    // We tested all the roles that have changed. If we reached here, the role change is authorized.
+    return true;
 }
 
 /**
