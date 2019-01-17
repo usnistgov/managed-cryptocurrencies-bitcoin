@@ -352,8 +352,13 @@ bool isAuthorized(const CTransaction& tx, const CRoleChangeMode& inRole, const C
                     return false;
                 // Retrieve the previous role set and calculate which roles have been changed
                 auto oldRoles = inputs.FetchOldRole(Coin(tx.vout[i], 1, false));
-                if (oldRoles.size() > 0)
+                if (oldRoles.size() > 0) {
+                    std::cout << __func__ << ":" << __LINE__ << "> old roles: " << oldRoles.front().out.nRole.ToString() << std::endl; // FIXME 
+                    std::cout << __func__ << ":" << __LINE__ << "> new roles: " << roleDelta.ToString() << std::endl; // FIXME 
                     roleDelta ^= oldRoles.front().out.nRole;
+                    std::cout << __func__ << ":" << __LINE__ << "> change...: " << roleDelta.ToString() << std::endl; // FIXME 
+                }
+                else std::cout << __func__ << ":" << __LINE__ << "> Cannot fetch old roles" << std::endl; // FIXME 
                 // Check if the user changing the role set is authorized to do so
                 if (!isAuthorizedRCM(inRole, roleDelta))
                     return false;

@@ -11,6 +11,7 @@
 #include <script/script.h>
 #include <serialize.h>
 #include <uint256.h>
+#include <tinyformat.h>
 
 static const int SERIALIZE_TRANSACTION_NO_WITNESS = 0x40000000;
 
@@ -159,6 +160,17 @@ struct CRoleChangeMode {
         fRoleC(fRoleCIn),
         fRoleM(fRoleMIn),
         nReserved(NULL_ROLE_RESERVED) {};
+
+    std::string ToString() const
+    {
+        return strprintf("%c%c%c%c%c%c",
+            fRoleM ? 'M' : '.',
+            fRoleC ? 'C' : '.',
+            fRoleL ? 'L' : '.',
+            fRoleR ? 'R' : '.',
+            fRoleA ? 'A' : '.',
+            fRoleD ? 'D' : '.');
+    }
 
     friend bool operator==(const CRoleChangeMode& a, const CRoleChangeMode& b)
     {
