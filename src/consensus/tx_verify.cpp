@@ -16,6 +16,7 @@
 #include <chain.h>
 #include <coins.h>
 #include <utilmoneystr.h>
+#include <base58.h>
 
 bool IsFinalTx(const CTransaction &tx, int nBlockHeight, int64_t nBlockTime)
 {
@@ -172,10 +173,27 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
 
     switch (tx.nVersion) {
         case CTransaction::VERSION_COINBASE_TRANSFER:
-            // TODO
+        {
+            // Check for negative or overflow output values
+            CAmount nValueOut = 0;
+            for (size_t idx = 0; idx < tx.vout.size(); ++idx)
+            {
+                if (tx.vout[idx].nTxType != CTxOut::COIN_TRANSFER)
+                    return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-wrong-type");
+                CAmount nValue = tx.vout[idx].nValue;
+                if (nValue < 0)
+                    return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-negative");
+                if (nValue > MAX_MONEY)
+                    return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-toolarge");
+                nValueOut += nValue;
+                if (!MoneyRange(nValueOut))
+                    return state.DoS(100, false, REJECT_INVALID, "bad-txns-txouttotal-toolarge");
+            }
             break;
+        }
         case CTransaction::VERSION_COIN_TRANSFER:
         {
+            if (!tx.IsCoinBase()) // FIXME
             // Check if the first vout is a "role repeat"
             if (tx.vout[0].nTxType != CTxOut::ROLE_CHANGE)
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-wrong-type");
@@ -363,6 +381,10 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
     }
 
     // TODO: We might need special handling for "coinbase change tx"
+    // A prerequisite for this function is that the transaction cannot be a coinbase
+    if (tx.IsCoinBase() || tx.nVersion == CTransaction::VERSION_COINBASE_TRANSFER) {
+        return state.Invalid(false, REJECT_INVALID, "bad-txns-unexpected-coinbase");
+    }
 
     // Retrieve the first vin's utxo
     const COutPoint &cred_prevout = tx.vin[0].prevout;
@@ -392,7 +414,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
     for (size_t i = 1; i < tx.vin.size(); ++i) {
         const COutPoint &prevout = tx.vin[i].prevout;
         const Coin& coin = inputs.AccessCoin(prevout);
-        if (coin.out.nTxType != CTxOut::COIN_TRANSFER) // FIXME: Perhaps add COINBASE_TRANSFER?
+        if (coin.out.nTxType != CTxOut::COIN_TRANSFER)
             return state.Invalid(false, REJECT_INVALID, "bad-txns-coin-transfer-expected");
         assert(ExtractDestination(coin.out.scriptPubKey, dest2));
         if (dest1 != dest2)

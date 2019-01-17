@@ -394,6 +394,8 @@ public:
     size_t GetPayloadOffset() const {
         switch (nVersion)
         {
+            case VERSION_COINBASE_TRANSFER:
+                return 0;
             case VERSION_COIN_TRANSFER:
             case VERSION_ROLE_CHANGE_FEE:
             case VERSION_POLICY_CHANGE_FEE:
