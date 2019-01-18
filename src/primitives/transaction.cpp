@@ -112,9 +112,9 @@ std::string CTxOut::ToString() const
 {
     CTxDestination dest;
     std::string sdest;
-//    if (ExtractDestination(scriptPubKey, dest))
-//        sdest = EncodeDestination(dest);
-//    else
+    if (ExtractDestination(scriptPubKey, dest))
+        sdest = EncodeDestination(dest);
+    else
         sdest = "unknown";
     switch(nTxType) {
         case COIN_TRANSFER:

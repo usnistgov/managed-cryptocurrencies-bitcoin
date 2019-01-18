@@ -606,12 +606,6 @@ static bool AcceptToMemoryPoolWorker(const CChainParams& chainparams, CTxMemPool
     std::set<uint256> setConflicts;
     for (const CTxIn &txin : tx.vin)
     {
-        // Role transactions can be used multiple times, so skip them
-/*        if (view.GetCoin(txin.prevout, coin)) {
-            if (coin.out.nTxType == CTxOut::ROLE_CHANGE)
-                continue;
-        }*/ // FIXME
-
         auto itConflicting = pool.mapNextTx.find(txin.prevout);
         if (itConflicting != pool.mapNextTx.end())
         {
@@ -678,7 +672,7 @@ static bool AcceptToMemoryPoolWorker(const CChainParams& chainparams, CTxMemPool
         // Bring the best block into scope
         view.GetBestBlock();
 
-        // we have all inputs cached now, so switch back to dummy, so we don't need to keep lock on mempool
+        // We have all inputs cached now, so switch back to dummy, so we don't need to keep lock on mempool
         view.SetBackend(dummy);
 
         // Only accept BIP68 sequence locked transactions that can be mined in the next

@@ -351,6 +351,7 @@ bool isAuthorized(const CTransaction& tx, const CRoleChangeMode& inRole, const C
                 if (!isValidRoleOut(roleDelta))
                     return false;
                 // Retrieve the previous role set and calculate which roles have been changed
+                std::cout << __func__ << ":" << __LINE__ << "> Fetching old roles for vout: " << tx.vout[i].ToString() << std::endl; // FIXME 
                 auto oldRoles = inputs.FetchOldRole(Coin(tx.vout[i], 1, false));
                 if (oldRoles.size() > 0) {
                     std::cout << __func__ << ":" << __LINE__ << "> old roles: " << oldRoles.front().out.nRole.ToString() << std::endl; // FIXME 
