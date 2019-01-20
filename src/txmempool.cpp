@@ -823,6 +823,44 @@ CTransactionRef CTxMemPool::get(const uint256& hash) const
     return i->GetSharedTx();
 }
 
+Coin CTxMemPool::getRoleByDest(const CTxDestination& dest) const
+{
+    LOCK(cs);
+    CTxDestination cur_dest;
+    for (auto txit = mapTx.begin(); txit != mapTx.end(); ++txit) {
+        const CTransaction tx = txit->GetTx();
+        switch (tx.nVersion) {
+            case CTransaction::VERSION_COIN_TRANSFER:
+            case CTransaction::VERSION_POLICY_CHANGE:
+            case CTransaction::VERSION_POLICY_CHANGE_FEE:
+            {
+                // Check only the first vout
+                assert(tx.vout.size() > 0);
+                const CTxOut out = tx.vout[0];
+                if (out.IsNull()) continue; // If the utxo is spent, move on.
+                assert(out.nTxType == CTxOut::ROLE_CHANGE);
+                assert(ExtractDestination(out.scriptPubKey, cur_dest));
+                if (dest != cur_dest) continue; // If the utxo is for a different address, move on.
+                return Coin(out, 1, false);
+            }
+            case CTransaction::VERSION_ROLE_CHANGE:
+            case CTransaction::VERSION_ROLE_CHANGE_FEE:
+            {
+                // Check all vout
+                for (const CTxOut out : tx.vout) {
+                    if (out.IsNull()) continue; // If the utxo is spent, move on.
+                    if (out.nTxType != CTxOut::ROLE_CHANGE) continue; // Not a role change, move on.
+                    assert(ExtractDestination(out.scriptPubKey, cur_dest));
+                    if (dest != cur_dest) continue; // If the utxo is for a different address, move on.
+                    return Coin(out, 1, false);
+                }
+            }
+        }
+    }
+
+    return Coin();
+}
+
 TxMempoolInfo CTxMemPool::info(const uint256& hash) const
 {
     LOCK(cs);
@@ -902,6 +940,26 @@ bool CCoinsViewMemPool::GetCoin(const COutPoint &outpoint, Coin &coin) const {
         }
     }
     return base->GetCoin(outpoint, coin);
+}
+
+//! Fetch old role UTXOs
+std::list<Coin> CCoinsViewMemPool::FetchOldRole(const Coin& coin) const {
+    std::list<Coin> oldRoles;
+    CTxDestination dest;
+    assert(ExtractDestination(coin.out.scriptPubKey, dest));
+    Coin oldRole = mempool.getRoleByDest(dest);
+    if (!oldRole.IsSpent()) {
+        oldRoles.push_front(oldRole);
+        return oldRoles;
+    }
+    if (base)
+        return base->FetchOldRole(coin);
+    return oldRoles;
+}
+
+//! Erase old role UTXOs
+void CCoinsViewMemPool::EraseOldRole(Coin& coin) {
+    // TODO
 }
 
 size_t CTxMemPool::DynamicMemoryUsage() const {

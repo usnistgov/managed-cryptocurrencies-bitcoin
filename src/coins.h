@@ -81,7 +81,7 @@ public:
         return memusage::DynamicUsage(out.scriptPubKey);
     }
 
-    std::string ToString() {
+    std::string ToString() const {
         return std::string("Coin(" + out.ToString() + ", coinbase=" + std::to_string(fCoinBase) + ", height=" + std::to_string(nHeight));
     }
 
@@ -313,7 +313,7 @@ public:
     bool HaveInputs(const CTransaction& tx) const;
 
     //! Fetch old role UTXOs
-    std::list<Coin> FetchOldRole(const Coin& coin) const;
+    std::list<Coin> FetchOldRole(const Coin& coin) const override;
 
     //! Erase old role UTXOs
     void EraseOldRole(Coin& coin) override;

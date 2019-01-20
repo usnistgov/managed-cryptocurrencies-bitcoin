@@ -184,15 +184,15 @@ struct CRoleChangeMode {
             a.nReserved == b.nReserved;
     };
 
-    friend CRoleChangeMode operator^=(const CRoleChangeMode& a, const CRoleChangeMode& b)
+    CRoleChangeMode& operator^=(const CRoleChangeMode& other)
     {
-        return CRoleChangeMode (
-            a.fRoleD ^ b.fRoleD,
-            a.fRoleA ^ b.fRoleA,
-            a.fRoleR ^ b.fRoleR,
-            a.fRoleL ^ b.fRoleL,
-            a.fRoleC ^ b.fRoleC,
-            a.fRoleM ^ b.fRoleM);
+        fRoleD ^= other.fRoleD;
+        fRoleA ^= other.fRoleA;
+        fRoleR ^= other.fRoleR;
+        fRoleL ^= other.fRoleL;
+        fRoleC ^= other.fRoleC;
+        fRoleM ^= other.fRoleM;
+        return *this;
     };
 };
 

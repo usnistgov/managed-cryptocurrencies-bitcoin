@@ -15,8 +15,10 @@
 
 #include <amount.h>
 #include <coins.h>
+#include <pubkey.h>
 #include <indirectmap.h>
 #include <policy/feerate.h>
+#include <script/standard.h>
 #include <primitives/transaction.h>
 #include <sync.h>
 #include <random.h>
@@ -637,6 +639,7 @@ public:
     }
 
     CTransactionRef get(const uint256& hash) const;
+    Coin getRoleByDest(const CTxDestination& dest) const;
     TxMempoolInfo info(const uint256& hash) const;
     std::vector<TxMempoolInfo> infoAll() const;
 
@@ -703,6 +706,11 @@ protected:
 public:
     CCoinsViewMemPool(CCoinsView* baseIn, const CTxMemPool& mempoolIn);
     bool GetCoin(const COutPoint &outpoint, Coin &coin) const override;
+
+    //! Fetch old role UTXOs
+    std::list<Coin> FetchOldRole(const Coin& coin) const override;
+    //! Erase old role UTXOs
+    void EraseOldRole(Coin& coin) override;
 };
 
 /**
