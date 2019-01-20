@@ -337,8 +337,8 @@ bool isAuthorized(const CTransaction& tx, const CRoleChangeMode& inRole, const C
     switch(tx.nVersion)
     {
         case CTransaction::VERSION_COINBASE_TRANSFER:
-            // TODO
-            break;
+            // We should not reach here
+            return true;
         case CTransaction::VERSION_COIN_TRANSFER:
             // The sender needs at least role R, but it's already checked for in isValidRoleIn
             return true;
@@ -386,119 +386,126 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
                          strprintf("%s: inputs missing/spent", __func__));
     }
 
-    // TODO: We might need special handling for "coinbase change tx"
-    // A prerequisite for this function is that the transaction cannot be a coinbase
-    if (tx.IsCoinBase() || tx.nVersion == CTransaction::VERSION_COINBASE_TRANSFER) {
-        return state.Invalid(false, REJECT_INVALID, "bad-txns-unexpected-coinbase");
-    }
-
-    // Retrieve the first vin's utxo
-    const COutPoint &cred_prevout = tx.vin[0].prevout;
-    const Coin& credentials = inputs.AccessCoin(cred_prevout);
-
-    // Assert that the first vin points to a role change utxo
-    // TODO: "coinbase change tx" need special handling here
-    if (credentials.out.nTxType != CTxOut::ROLE_CHANGE) {
-        return state.Invalid(false, REJECT_INVALID, "bad-txns-missing-credentials");
-    }
-
-    // Assert that the first vout is a "role repeat"
-    // TODO: "coinbase change tx" need special handling here
-    if (tx.vout[0].nTxType != CTxOut::ROLE_CHANGE) {
-        return state.Invalid(false, REJECT_INVALID, "bad-txns-missing-rolerepeat");
-    }
-
-    // Ensure that the account has sufficient privileges to perform the operation
-    if(!isAuthorized(tx, credentials.out.nRole, inputs)) {
-        return state.Invalid(false, REJECT_INVALID, "bad-txns-not-authorized");
-    }
-
-    // Ensure that all vins are using the same address, so that one cannot use its privileges with another address
-    // Also ensure that all vins except the first are coin transfer utxo
     CTxDestination dest1, dest2;
-    assert(ExtractDestination(credentials.out.scriptPubKey, dest1));
-    for (size_t i = 1; i < tx.vin.size(); ++i) {
-        const COutPoint &prevout = tx.vin[i].prevout;
-        const Coin& coin = inputs.AccessCoin(prevout);
-        if (coin.out.nTxType != CTxOut::COIN_TRANSFER)
-            return state.Invalid(false, REJECT_INVALID, "bad-txns-coin-transfer-expected");
-        assert(ExtractDestination(coin.out.scriptPubKey, dest2));
-        if (dest1 != dest2)
-            return state.Invalid(false, REJECT_INVALID, "bad-txns-address-mismatch");
-    }
 
-    // Ensure that the first vout uses the vin address ("role repeat")
-    // FIXME (also change address of coinbase transfer)
-    assert(ExtractDestination(tx.vout[0].scriptPubKey, dest2));
-    if (dest1 != dest2)
-        return state.Invalid(false, REJECT_INVALID, "bad-txns-address-mismatch");
-    
-    // Check that the second vout uses the vin address when a change address is used
-    switch (tx.nVersion)
+    // Special case of a miner trying to spend a coinbase
+    if (tx.nVersion == CTransaction::VERSION_COINBASE_TRANSFER) {
+        // Ensure that all vin are coinbases
+        for (const CTxIn in : tx.vin) {
+            const Coin& prevout = inputs.AccessCoin(in.prevout);
+            assert(prevout.out.nTxType == CTxOut::COIN_TRANSFER);
+            if (!prevout.IsCoinBase())
+                return state.Invalid(false, REJECT_INVALID, "bad-txns-coinbase-expected");
+        }
+    }
+    else
     {
-        case CTransaction::VERSION_COIN_TRANSFER:
-        case CTransaction::VERSION_ROLE_CHANGE_FEE:
-        case CTransaction::VERSION_POLICY_CHANGE_FEE:
-            assert(ExtractDestination(tx.vout[1].scriptPubKey, dest2));
+        // Retrieve the first vin's utxo
+        const COutPoint &cred_prevout = tx.vin[0].prevout;
+        const Coin& credentials = inputs.AccessCoin(cred_prevout);
+
+        // Assert that the first vin points to a role change utxo
+        if (credentials.out.nTxType != CTxOut::ROLE_CHANGE) {
+            return state.Invalid(false, REJECT_INVALID, "bad-txns-missing-credentials");
+        }
+
+        // Assert that the first vout is a "role repeat"
+        if (tx.vout[0].nTxType != CTxOut::ROLE_CHANGE) {
+            return state.Invalid(false, REJECT_INVALID, "bad-txns-missing-rolerepeat");
+        }
+
+        // Ensure that the account has sufficient privileges to perform the operation
+        if(!isAuthorized(tx, credentials.out.nRole, inputs)) {
+            return state.Invalid(false, REJECT_INVALID, "bad-txns-not-authorized");
+        }
+
+        // Ensure that all vins are using the same address, so that one cannot use its privileges with another address
+        // Also ensure that all vins except the first are coin transfer utxo
+        assert(ExtractDestination(credentials.out.scriptPubKey, dest1));
+        for (size_t i = 1; i < tx.vin.size(); ++i) {
+            const COutPoint &prevout = tx.vin[i].prevout;
+            const Coin& coin = inputs.AccessCoin(prevout);
+            if (coin.out.nTxType != CTxOut::COIN_TRANSFER)
+                return state.Invalid(false, REJECT_INVALID, "bad-txns-coin-transfer-expected");
+            assert(ExtractDestination(coin.out.scriptPubKey, dest2));
             if (dest1 != dest2)
                 return state.Invalid(false, REJECT_INVALID, "bad-txns-address-mismatch");
-            break;
-        default:
-            break;
-    }
+        }
 
-    // Check the type of the following vouts
-    CTxOut::TxType txType = CTxOut::UNINITIALIZED;
-    switch (tx.nVersion)
-    {
-        case CTransaction::VERSION_COIN_TRANSFER:
-        case CTransaction::VERSION_COINBASE_TRANSFER:
-            txType = CTxOut::COIN_TRANSFER;
-            break;
-        case CTransaction::VERSION_ROLE_CHANGE:
-        case CTransaction::VERSION_ROLE_CHANGE_FEE:
-            txType = CTxOut::ROLE_CHANGE;
-            break;
-        case CTransaction::VERSION_POLICY_CHANGE:
-        case CTransaction::VERSION_POLICY_CHANGE_FEE:
-            txType = CTxOut::POLICY_CHANGE;
-            break;
-        default:
-            return state.Invalid(false, REJECT_INVALID, "bad-txns-invalid-txversion");
-    }
-    for (size_t i = tx.GetPayloadOffset(); i < tx.vout.size(); ++i) {
-        if (tx.vout[i].nTxType != txType)
-            return state.Invalid(false, REJECT_INVALID, "bad-txns-invalid-vouttype");
-    }
+        // Ensure that the first vout uses the vin address ("role repeat")
+        // FIXME (also change address of coinbase transfer)
+        assert(ExtractDestination(tx.vout[0].scriptPubKey, dest2));
+        if (dest1 != dest2)
+            return state.Invalid(false, REJECT_INVALID, "bad-txns-address-mismatch");
 
-    // Check the value of the "role repeat" vout
-    switch (tx.nVersion)
-    {
-        case CTransaction::VERSION_ROLE_CHANGE:
-        case CTransaction::VERSION_ROLE_CHANGE_FEE:
-            // A user is allowed to drop its privileges to attach itself to a new parent
-            if (tx.vout[0].nRole == CRoleChangeMode())
+        // Check that the change address is the same as the vin address
+        switch (tx.nVersion)
+        {
+            case CTransaction::VERSION_COIN_TRANSFER:
+            case CTransaction::VERSION_ROLE_CHANGE_FEE:
+            case CTransaction::VERSION_POLICY_CHANGE_FEE:
+                assert(tx.vout.size() > 1);
+                assert(ExtractDestination(tx.vout[1].scriptPubKey, dest2));
+                if (dest1 != dest2)
+                    return state.Invalid(false, REJECT_INVALID, "bad-txns-address-mismatch");
                 break;
-            // Fallthrough
-        case CTransaction::VERSION_COIN_TRANSFER:
-        case CTransaction::VERSION_POLICY_CHANGE:
-        case CTransaction::VERSION_POLICY_CHANGE_FEE:
-            // If the "role repeat" is the same as the current role, we're good
-            if (tx.vout[0].nRole == credentials.out.nRole)
+            default:
                 break;
-            return state.Invalid(false, REJECT_INVALID, "bad-txns-invalid-rolerepeat");
-        case CTransaction::VERSION_COINBASE_TRANSFER:
-            // No "role repeat" for this tx type
-            break;
-        default:
-            return state.Invalid(false, REJECT_INVALID, "bad-txns-invalid-txversion");
-    }
+        }
 
-    // Check that the following vouts don't use the vin address
-    for (size_t i = tx.GetPayloadOffset(); i < tx.vout.size(); ++i) {
-        assert(ExtractDestination(tx.vout[i].scriptPubKey, dest2));
-        if (dest1 == dest2)
-            return state.Invalid(false, REJECT_INVALID, "bad-txns-address-reuse");
+        // Check the type of the following vouts
+        CTxOut::TxType txType = CTxOut::UNINITIALIZED;
+        switch (tx.nVersion)
+        {
+            case CTransaction::VERSION_COIN_TRANSFER:
+            case CTransaction::VERSION_COINBASE_TRANSFER:
+                txType = CTxOut::COIN_TRANSFER;
+                break;
+            case CTransaction::VERSION_ROLE_CHANGE:
+            case CTransaction::VERSION_ROLE_CHANGE_FEE:
+                txType = CTxOut::ROLE_CHANGE;
+                break;
+            case CTransaction::VERSION_POLICY_CHANGE:
+            case CTransaction::VERSION_POLICY_CHANGE_FEE:
+                txType = CTxOut::POLICY_CHANGE;
+                break;
+            default:
+                return state.Invalid(false, REJECT_INVALID, "bad-txns-invalid-txversion");
+        }
+        for (size_t i = tx.GetPayloadOffset(); i < tx.vout.size(); ++i) {
+            if (tx.vout[i].nTxType != txType)
+                return state.Invalid(false, REJECT_INVALID, "bad-txns-invalid-vouttype");
+        }
+
+        // Check the value of the "role repeat" vout
+        switch (tx.nVersion)
+        {
+            case CTransaction::VERSION_ROLE_CHANGE:
+            case CTransaction::VERSION_ROLE_CHANGE_FEE:
+                // A user is allowed to drop its privileges to attach itself to a new parent
+                if (tx.vout[0].nRole == CRoleChangeMode())
+                    break;
+                // Fallthrough
+            case CTransaction::VERSION_COIN_TRANSFER:
+            case CTransaction::VERSION_POLICY_CHANGE:
+            case CTransaction::VERSION_POLICY_CHANGE_FEE:
+                // If the "role repeat" is the same as the current role, we're good
+                if (tx.vout[0].nRole == credentials.out.nRole)
+                    break;
+                return state.Invalid(false, REJECT_INVALID, "bad-txns-invalid-rolerepeat");
+            case CTransaction::VERSION_COINBASE_TRANSFER:
+                // No "role repeat" for this tx type
+                break;
+            default:
+                return state.Invalid(false, REJECT_INVALID, "bad-txns-invalid-txversion");
+        }
+
+        // Check that the following vouts don't use the vin address
+        for (size_t i = tx.GetPayloadOffset(); i < tx.vout.size(); ++i) {
+            assert(ExtractDestination(tx.vout[i].scriptPubKey, dest2));
+            if (dest1 == dest2)
+                return state.Invalid(false, REJECT_INVALID, "bad-txns-address-reuse");
+        }
     }
 
     // Calculate fees
@@ -516,12 +523,6 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
         case CTransaction::VERSION_POLICY_CHANGE_FEE:
         {
             CAmount nValueIn = 0;
-
-            // Check that the change address is the same as the vin address
-            assert(tx.vout.size() > 1);
-            assert(ExtractDestination(tx.vout[1].scriptPubKey, dest2));
-            if (dest1 != dest2)
-                return state.Invalid(false, REJECT_INVALID, "bad-txns-address-mismatch");
 
             // Check the amount of coins used as input
             for (size_t i = 0; i < tx.vin.size(); ++i) {

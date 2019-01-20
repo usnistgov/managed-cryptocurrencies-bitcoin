@@ -78,7 +78,7 @@ public:
     std::vector<uint256> GetHeadBlocks() const override;
     bool BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock) override;
     CCoinsViewCursor *Cursor() const override;
-    
+
     //! Fetch old role UTXOs
     std::list<Coin> FetchOldRole(const Coin& coin) const override;
     //! Erase old role UTXOs
