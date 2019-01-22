@@ -188,6 +188,19 @@ CCoinsViewCursor *CCoinsViewDB::Cursor() const
     return i;
 }
 
+//! Fetch old role UTXOs
+std::list<Coin> CCoinsViewDB::FetchOldRole(const Coin& coin) const
+{
+    // TODO
+    return std::list<Coin>();
+}
+
+//! Erase old role UTXOs
+void CCoinsViewDB::EraseOldRole(Coin& coin)
+{
+    // TODO
+}
+
 bool CCoinsViewDBCursor::GetKey(COutPoint &key) const
 {
     // Return cached key
@@ -350,7 +363,7 @@ public:
             if (vAvail[i])
                 ::Unserialize(s, REF(CTxOutCompressor(vout[i])));
         }
-        for (int i = 0; i < vout.size(); ++i) { // FIXME
+        for (size_t i = 0; i < vout.size(); ++i) { // FIXME
             vout[i].Check(__func__, __LINE__);
         }
         // coinbase height

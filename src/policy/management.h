@@ -62,7 +62,7 @@ public:
       role.fRoleR = activePolicy.fRoleRActive;
       role.fRoleA = activePolicy.fRoleAActive;
       role.fRoleD = activePolicy.fRoleDActive;
-      role.nReserved = CTxOut::NULL_ROLE_RESERVED;
+      role.nReserved = CRoleChangeMode::NULL_ROLE_RESERVED;
       return role;
     }
 };

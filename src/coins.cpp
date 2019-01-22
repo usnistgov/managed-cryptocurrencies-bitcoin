@@ -25,7 +25,7 @@ bool CCoinsView::HaveCoin(const COutPoint &outpoint) const
     return GetCoin(outpoint, coin);
 }
 
-CCoinsViewBacked::CCoinsViewBacked(CCoinsView *viewIn) : base(viewIn) { }
+CCoinsViewBacked::CCoinsViewBacked(CCoinsView *viewIn) : base(viewIn) {}
 bool CCoinsViewBacked::GetCoin(const COutPoint &outpoint, Coin &coin) const { return base->GetCoin(outpoint, coin); }
 bool CCoinsViewBacked::HaveCoin(const COutPoint &outpoint) const { return base->HaveCoin(outpoint); }
 uint256 CCoinsViewBacked::GetBestBlock() const { return base->GetBestBlock(); }
@@ -70,35 +70,74 @@ bool CCoinsViewCache::GetCoin(const COutPoint &outpoint, Coin &coin) const {
 }
 
 #include <iostream> // FIXME
+#include <sstream>
 #include <stdio.h>
 
-void CCoinsViewCache::AddCoin(const COutPoint &outpoint, Coin&& coin, bool possible_overwrite) {
-    if (!coin.IsSpent()) { // FIXME
-        fprintf(stderr, "\nCCoinsViewCache::AddCoin: CTxOut=%lp\n", &(coin.out));
-        std::cerr << coin.out.ToString() << std::endl;
+std::list<Coin> CCoinsViewCache::FetchOldRole(const Coin& coin) const {
+    CCoinsMap::iterator it;
+    CTxDestination dest1, dest2;
+    std::list<Coin> oldRoleList;
+    assert(ExtractDestination(coin.out.scriptPubKey, dest1));
+    for (it = cacheCoins.begin(); it != cacheCoins.end(); ++it) {
+        if (coin == it->second.coin) continue;
+	    if (it->second.coin.IsSpent()) continue;
+        if (it->second.coin.out.nTxType != CTxOut::ROLE_CHANGE) continue;
+        if (!ExtractDestination(it->second.coin.out.scriptPubKey, dest2)) continue;
+        if (dest1 != dest2) continue;
+        // Found the old role UTXO
+        oldRoleList.push_front(it->second.coin);
+        if (it->second.flags & CCoinsCacheEntry::FRESH) {
+            // If fresh, we're done, return the old role utxo
+            std::cerr << __func__ << ":" << __LINE__ << "> FRESH: " << it->second.coin.ToString() << std::endl; // FIXME
+            return oldRoleList;
+        } else {
+            // If dirty, fetch the utxo in the parent view
+            std::cerr << __func__ << ":" << __LINE__ << "> DIRTY: " << it->second.coin.ToString() << std::endl; // FIXME
+        }
+        break;
     }
+    if (base)
+        oldRoleList.splice(oldRoleList.end(), ((CCoinsViewCache*)base)->FetchOldRole(coin));
+    return oldRoleList;
+}
+
+void CCoinsViewCache::EraseOldRole(Coin& coin) {
+    CCoinsMap::iterator it;
+    CTxDestination dest1, dest2;
+    assert(ExtractDestination(coin.out.scriptPubKey, dest1));
+    for (it = cacheCoins.begin(); it != cacheCoins.end(); ++it) {
+        if (coin == it->second.coin) continue;
+	    if (it->second.coin.IsSpent()) continue;
+        if (it->second.coin.out.nTxType != CTxOut::ROLE_CHANGE) continue;
+        if (!ExtractDestination(it->second.coin.out.scriptPubKey, dest2)) continue;
+        if (dest1 != dest2) continue;
+        // Found the old role UTXO, now delete it
+        cachedCoinsUsage -= it->second.coin.DynamicMemoryUsage();
+        if (it->second.flags & CCoinsCacheEntry::FRESH) {
+            // If fresh, we're done, just delete the utxo
+            std::cerr << __func__ << ":" << __LINE__ << "> FRESH: " << it->second.coin.ToString() << std::endl; // FIXME
+            it = cacheCoins.erase(it);
+            return;
+        } else {
+            // If dirty, clear the utxo in the current view and look for it in the parent view
+            std::cerr << __func__ << ":" << __LINE__ << "> DIRTY: " << it->second.coin.ToString() << std::endl; // FIXME
+            it->second.flags |= CCoinsCacheEntry::DIRTY;
+            it->second.coin.Clear();
+        }
+        break;
+    }
+    if (base)
+        ((CCoinsViewCache*)base)->EraseOldRole(coin);
+}
+
+void CCoinsViewCache::AddCoin(const COutPoint &outpoint, Coin&& coin, bool possible_overwrite) {
     assert(!coin.IsSpent());
     if (coin.out.scriptPubKey.IsUnspendable()) return;
-    CCoinsMap::iterator it;
-
-    if (coin.out.nTxType == CTxOut::ROLE_CHANGE) { 
-        CTxDestination dest1, dest2;
-        assert(ExtractDestination(coin.out.scriptPubKey, dest1));
-        for (it = cacheCoins.begin(); it != cacheCoins.end(); ++it) {
-            if (ExtractDestination(it->second.coin.out.scriptPubKey, dest2)) {
-                std::cout << __func__ << ":" << __LINE__ << "> utxo1=" << coin.out.ToString() << " utxo2=" << it->second.coin.out.ToString() << std::endl;  // FIXME
-                if (it->second.coin.out.nTxType == CTxOut::ROLE_CHANGE) {
-                    std::cout << __func__ << ":" << __LINE__ << "> utxo1=" << coin.out.ToString() << " utxo2=" << it->second.coin.out.ToString() << std::endl;  // FIXME
-                    if (dest1 == dest2) {
-                        // Found the old role UTXO, now delete it
-                        std::cout << __func__ << ":" << __LINE__ << "> utxo1=" << coin.out.ToString() << " utxo2=" << it->second.coin.out.ToString() << std::endl;  // FIXME
-                        cacheCoins.erase(it);
-                        break;
-                    }
-                }
-            }
-        }
+    // Erase an old role if a new one has been granted to an address
+    if (coin.out.nTxType == CTxOut::ROLE_CHANGE && outpoint.n > 0) {
+        EraseOldRole(coin);
     }
+    CCoinsMap::iterator it;
     bool inserted;
     std::tie(it, inserted) = cacheCoins.emplace(std::piecewise_construct, std::forward_as_tuple(outpoint), std::tuple<>());
     bool fresh = false;
@@ -114,7 +153,6 @@ void CCoinsViewCache::AddCoin(const COutPoint &outpoint, Coin&& coin, bool possi
     it->second.coin = std::move(coin);
     it->second.flags |= CCoinsCacheEntry::DIRTY | (fresh ? CCoinsCacheEntry::FRESH : 0);
     cachedCoinsUsage += it->second.coin.DynamicMemoryUsage();
-    std::cout << __func__ << ":" << __LINE__ << "> INSERTED: " << it->second.coin.out.ToString() << std::endl;  // FIXME
 }
 
 void AddCoins(CCoinsViewCache& cache, const CTransaction &tx, int nHeight, bool check) {

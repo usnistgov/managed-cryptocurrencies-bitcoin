@@ -52,7 +52,6 @@ CTxOut::CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn)
     nTxType = COIN_TRANSFER;
     nValue = nValueIn;
     scriptPubKey = scriptPubKeyIn;
-    Stack(__func__, __LINE__);
 }
 
 CTxOut::CTxOut(
@@ -71,9 +70,8 @@ CTxOut::CTxOut(
     nRole.fRoleR = fRoleRIn;
     nRole.fRoleA = fRoleAIn;
     nRole.fRoleD = fRoleDIn;
-    nRole.nReserved = NULL_ROLE_RESERVED;
+    nRole.nReserved = CRoleChangeMode::NULL_ROLE_RESERVED;
     scriptPubKey = scriptPubKeyIn;
-    Stack(__func__, __LINE__);
 }
 
 CTxOut::CTxOut(const CRoleChangeMode& nRolesIn, CScript scriptPubKeyIn)
@@ -81,7 +79,6 @@ CTxOut::CTxOut(const CRoleChangeMode& nRolesIn, CScript scriptPubKeyIn)
     nTxType = ROLE_CHANGE;
     nRole = nRolesIn;
     scriptPubKey = scriptPubKeyIn;
-    Stack(__func__, __LINE__);
 }
 
 CTxOut::CTxOut(
@@ -95,7 +92,6 @@ CTxOut::CTxOut(
     nPolicy.nType  = nTypeIn;
     nPolicy.nParam = nParamIn;
     scriptPubKey = scriptPubKeyIn;
-    Stack(__func__, __LINE__);
 }
 
 void CTxOut::SetNull()
@@ -118,19 +114,13 @@ std::string CTxOut::ToString() const
     std::string sdest;
     if (ExtractDestination(scriptPubKey, dest))
         sdest = EncodeDestination(dest);
-    else sdest = "unknown";
+    else
+        sdest = "unknown";
     switch(nTxType) {
         case COIN_TRANSFER:
             return strprintf("CTxOut(nValue=%d.%08d, dest=%s)", nValue / COIN, nValue % COIN, sdest);
         case ROLE_CHANGE:
-            return strprintf("CTxOut(nRole=%c%c%c%c%c%c, dest=%s)",
-                    nRole.fRoleM ? 'M' : '.',
-                    nRole.fRoleC ? 'C' : '.',
-                    nRole.fRoleL ? 'L' : '.',
-                    nRole.fRoleR ? 'R' : '.',
-                    nRole.fRoleA ? 'A' : '.',
-                    nRole.fRoleD ? 'D' : '.',
-                    sdest);
+            return std::string("CTxOut(nRole=" + nRole.ToString() + ", dest=" + sdest);
         case POLICY_CHANGE:
             return strprintf("CTxOut(fPrmnt=%s, nType=%u, nParam=%u, dest=%s)",
                     nPolicy.fPrmnt ? "permanent" : "provisional",
@@ -206,3 +196,4 @@ std::string CTransaction::ToString() const
         str += "    " + tx_out.ToString() + "\n";
     return str;
 }
+

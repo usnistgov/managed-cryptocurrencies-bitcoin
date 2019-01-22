@@ -190,7 +190,7 @@ static CAmount ExtractAndValidateValue(const std::string& strValue)
 
 static CRoleChangeMode ExtractAndValidateRoles(const std::string& strRoles)
 {
-    CRoleChangeMode roles = { false, false, false, false, false, false, CTxOut::NULL_ROLE_RESERVED };
+    CRoleChangeMode roles;
     if (strRoles.size() > 0)
         if (!ParseRoles(strRoles, roles))
             throw std::runtime_error("invalid TX output roles");

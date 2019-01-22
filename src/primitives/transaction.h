@@ -11,6 +11,7 @@
 #include <script/script.h>
 #include <serialize.h>
 #include <uint256.h>
+#include <tinyformat.h>
 
 static const int SERIALIZE_TRANSACTION_NO_WITNESS = 0x40000000;
 
@@ -133,12 +134,74 @@ struct CRoleChangeMode {
     uint64_t fRoleC :1;
     uint64_t fRoleM :1;
     uint64_t nReserved :58;
+
+    static const uint64_t NULL_ROLE_RESERVED = 0b0000000000000000000000000000000000000000000000000000000000;
+
+    CRoleChangeMode() :
+        fRoleD(false),
+        fRoleA(false),
+        fRoleR(false),
+        fRoleL(false),
+        fRoleC(false),
+        fRoleM(false),
+        nReserved(NULL_ROLE_RESERVED) {};
+
+    CRoleChangeMode(
+            bool fRoleDIn,
+            bool fRoleAIn,
+            bool fRoleRIn,
+            bool fRoleLIn,
+            bool fRoleCIn,
+            bool fRoleMIn) :
+        fRoleD(fRoleDIn),
+        fRoleA(fRoleAIn),
+        fRoleR(fRoleRIn),
+        fRoleL(fRoleLIn),
+        fRoleC(fRoleCIn),
+        fRoleM(fRoleMIn),
+        nReserved(NULL_ROLE_RESERVED) {};
+
+    std::string ToString() const
+    {
+        return strprintf("%c%c%c%c%c%c",
+            fRoleM ? 'M' : '.',
+            fRoleC ? 'C' : '.',
+            fRoleL ? 'L' : '.',
+            fRoleR ? 'R' : '.',
+            fRoleA ? 'A' : '.',
+            fRoleD ? 'D' : '.');
+    }
+
+    friend bool operator==(const CRoleChangeMode& a, const CRoleChangeMode& b)
+    {
+        return
+            a.fRoleD == b.fRoleD &&
+            a.fRoleA == b.fRoleA &&
+            a.fRoleR == b.fRoleR &&
+            a.fRoleL == b.fRoleL &&
+            a.fRoleC == b.fRoleC &&
+            a.fRoleM == b.fRoleM &&
+            a.nReserved == b.nReserved;
+    };
+
+    CRoleChangeMode& operator^=(const CRoleChangeMode& other)
+    {
+        fRoleD ^= other.fRoleD;
+        fRoleA ^= other.fRoleA;
+        fRoleR ^= other.fRoleR;
+        fRoleL ^= other.fRoleL;
+        fRoleC ^= other.fRoleC;
+        fRoleM ^= other.fRoleM;
+        return *this;
+    };
 };
 
 struct CPolicyChangeMode {
     uint64_t fPrmnt :1;
     uint64_t nType  :31;
     uint64_t nParam :32;
+
+    static const uint64_t NULL_POLICY_PARAM  = 0b00000000000000000000000000000000;
 };
 
 #include <stdio.h> // FIXME
@@ -168,26 +231,23 @@ public:
         POLICY_CHANGE = 3,
     } nTxType;
 
-    static const uint64_t NULL_ROLE_RESERVED = 0b0000000000000000000000000000000000000000000000000000000000;
-    static const uint64_t NULL_POLICY_PARAM  = 0b00000000000000000000000000000000;
-
-    void Stack(const char* funcname, int lineno) // FIXME
+    void Stack(const char* funcname, int lineno) const // FIXME
     {
         return;
         void *array[10];
         size_t size;
         size = backtrace(array, 10);
-        fprintf(stderr, "\nCTxOut@%lp: %s:%d\n", this, funcname, lineno);
+        fprintf(stderr, "\nCTxOut@%p: %s:%d\n", this, funcname, lineno);
         std::cerr << ToString() << std::endl;
         backtrace_symbols_fd(array, size, STDERR_FILENO);
         fflush(stderr);
     }
 
-    void Check(const char* funcname, int lineno) // FIXME
+    void Check(const char* funcname, int lineno) const // FIXME
     {
         if (nTxType == UNINITIALIZED) {
             char addr[20] = {0};
-            snprintf(addr, sizeof addr / sizeof *addr, "%lp", this);
+            snprintf(addr, sizeof addr / sizeof *addr, "%p", this);
             Stack(funcname, lineno);
             throw std::logic_error(std::string(funcname) + ":" + std::to_string(lineno) + "> Invalid nTxType: " + std::to_string(nTxType) + " CTxOut@" + std::string((char*)addr));
         }
@@ -197,7 +257,6 @@ public:
     {
         nTxType = UNINITIALIZED;
         SetNull();
-        Stack(__func__, __LINE__); // FIXME
     }
 
     CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn);
@@ -343,6 +402,21 @@ public:
     // GetValueIn() is a method on CCoinsViewCache, because
     // inputs must be known to compute value in.
 
+    // Calculate where the "payload" (first vout that's not a role repeat or a change address) starts in the vout array
+    size_t GetPayloadOffset() const {
+        switch (nVersion)
+        {
+            case VERSION_COINBASE_TRANSFER:
+                return 0;
+            case VERSION_COIN_TRANSFER:
+            case VERSION_ROLE_CHANGE_FEE:
+            case VERSION_POLICY_CHANGE_FEE:
+                return 2;
+            default:
+                return 1;
+        }
+    }
+
     /**
      * Get the total transaction size in bytes, including witness data.
      * "Total Size" defined in BIP141 and BIP144.
@@ -473,12 +547,12 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
         // For all transaction types except coinbase, the first vout is always a role change
         // so that a user is giving himself his own role (to prevent replay attacks).
         if (tx.nVersion == CTransaction::VERSION_COINBASE_TRANSFER) {
-            for (int i = 0; i < tx.vout.size(); ++i)
+            for (size_t i = 0; i < tx.vout.size(); ++i)
                 tx.vout[i].nTxType = CTxOut::COIN_TRANSFER;
             // TODO: mark the change as coinbase
         }
         else {
-            int i = 0;
+            size_t i = 0;
             tx.vout[i++].nTxType = CTxOut::ROLE_CHANGE;
             // For transactions that carry a fee, the second vout is a change address
             if (tx.vout.size() > 1) {

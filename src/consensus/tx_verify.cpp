@@ -6,6 +6,9 @@
 
 #include <consensus/consensus.h>
 #include <primitives/transaction.h>
+#include <pubkey.h>
+#include <script/script.h>
+#include <script/standard.h>
 #include <script/interpreter.h>
 #include <consensus/validation.h>
 
@@ -13,6 +16,7 @@
 #include <chain.h>
 #include <coins.h>
 #include <utilmoneystr.h>
+#include <base58.h>
 
 bool IsFinalTx(const CTransaction &tx, int nBlockHeight, int64_t nBlockTime)
 {
@@ -169,22 +173,47 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
 
     switch (tx.nVersion) {
         case CTransaction::VERSION_COINBASE_TRANSFER:
-            // TODO
+        {
+            // Check for negative or overflow output values
+            CAmount nValueOut = 0;
+            for (size_t idx = 0; idx < tx.vout.size(); ++idx)
+            {
+                if (tx.vout[idx].nTxType != CTxOut::COIN_TRANSFER)
+                    return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-wrong-type");
+                CAmount nValue = tx.vout[idx].nValue;
+                if (nValue < 0)
+                    return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-negative");
+                if (nValue > MAX_MONEY)
+                    return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-toolarge");
+                nValueOut += nValue;
+                if (!MoneyRange(nValueOut))
+                    return state.DoS(100, false, REJECT_INVALID, "bad-txns-txouttotal-toolarge");
+            }
             break;
+        }
         case CTransaction::VERSION_COIN_TRANSFER:
         {
-	        // Check for negative or overflow output values
-	        CAmount nValueOut = 0;
-	        for (const auto& txout : tx.vout)
-	        {
-	            if (txout.nValue < 0)
-	                return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-negative");
-	            if (txout.nValue > MAX_MONEY)
-	                return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-toolarge");
-	            nValueOut += txout.nValue;
-	            if (!MoneyRange(nValueOut))
-	                return state.DoS(100, false, REJECT_INVALID, "bad-txns-txouttotal-toolarge");
-	        }
+            if (!tx.IsCoinBase()) // FIXME
+            // Check if the first vout is a "role repeat"
+            if (tx.vout[0].nTxType != CTxOut::ROLE_CHANGE)
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-wrong-type");
+
+            // Check for negative or overflow output values
+            CAmount nValueOut = 0;
+            // Start at offset 1 because the first vout is a "role repeat"
+            for (size_t idx = 1; idx < tx.vout.size(); ++idx)
+            {
+                if (tx.vout[idx].nTxType != CTxOut::COIN_TRANSFER)
+                    return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-wrong-type");
+                CAmount nValue = tx.vout[idx].nValue;
+                if (nValue < 0)
+                    return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-negative");
+                if (nValue > MAX_MONEY)
+                    return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-toolarge");
+                nValueOut += nValue;
+                if (!MoneyRange(nValueOut))
+                    return state.DoS(100, false, REJECT_INVALID, "bad-txns-txouttotal-toolarge");
+            }
             break;
         }
         case CTransaction::VERSION_ROLE_CHANGE:
@@ -234,48 +263,55 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
  * @param nRole
  * @return
  */
-bool isValidRole(const CRoleChangeMode& nRole) {
+bool isValidRoleIn(const CRoleChangeMode& nRoleIn)
+{
     // Account must be registered and not disabled
-    if(!nRole.fRoleR || nRole.fRoleD) {
+    if(!nRoleIn.fRoleR || nRoleIn.fRoleD)
         return false;
-    }
 
     // Account must only have one role
-    if(nRole.fRoleM && !nRole.fRoleC && !nRole.fRoleL && !nRole.fRoleA) {
+    if ((int)nRoleIn.fRoleM + (int)nRoleIn.fRoleC + (int)nRoleIn.fRoleL + (int)nRoleIn.fRoleA <= 1)
         return true;
-    }
-    if(nRole.fRoleC && !nRole.fRoleM && !nRole.fRoleL && !nRole.fRoleA) {
-        return true;
-    }
-    if(nRole.fRoleL && !nRole.fRoleC && !nRole.fRoleM && !nRole.fRoleA) {
-        return true;
-    }
-    if(nRole.fRoleA && !nRole.fRoleC && !nRole.fRoleL && !nRole.fRoleM) {
-        return true;
-    }
 
     // By default
     return false;
 }
 
-bool isAuthorizedRCM(const CRoleChangeMode& inRole, const CRoleChangeMode& outRole) {
-    // Managers (M role) can perform any role change.
-    if(inRole.fRoleM) {
+bool isValidRoleOut(const CRoleChangeMode& nRoleOut)
+{
+    // An emtpy role is valid
+    if (nRoleOut == CRoleChangeMode())
         return true;
-    }
 
-    // Account managers (A role) can register users.
-    if(outRole.fRoleR && inRole.fRoleA) {
-        return true;
-    }
+    // Otherwise an account must be registered
+    if(!nRoleOut.fRoleR)
+        return false;
 
-    // Law enforcement (L role) can disable accounts.
-    if(outRole.fRoleD && inRole.fRoleL) {
+    // An account must have at most one role
+    if ((int)nRoleOut.fRoleM + (int)nRoleOut.fRoleC + (int)nRoleOut.fRoleL + (int)nRoleOut.fRoleA <= 1)
         return true;
-    }
 
     // By default
     return false;
+}
+
+
+bool isAuthorizedRCM(const CRoleChangeMode& inRole, const CRoleChangeMode& roleDelta)
+{
+    // Manager M privileges are required to grant/remove roles M, C, L and A
+    if (roleDelta.fRoleM || roleDelta.fRoleC || roleDelta.fRoleL || roleDelta.fRoleA)
+        if (!inRole.fRoleM)
+            return false;
+    // Manager M or Account Manager A privileges are required to grant/remove role R
+    if (roleDelta.fRoleR)
+        if (!inRole.fRoleM && !inRole.fRoleA)
+            return false;
+    // Manager M or Law Enforcement L privileges are requires to enable/disable an account
+    if (roleDelta.fRoleD)
+        if (!inRole.fRoleM && !inRole.fRoleL)
+            return false;
+    // We tested all the roles that have changed. If we reached here, the role change is authorized.
+    return true;
 }
 
 /**
@@ -286,52 +322,55 @@ bool isAuthorizedRCM(const CRoleChangeMode& inRole, const CRoleChangeMode& outRo
  * @param txVouts
  * @return
  */
-bool isAuthorized(int32_t nVersion, const CRoleChangeMode& inRole, const std::vector<CTxOut>& txVouts) {
+bool isAuthorized(const CTransaction& tx, const CRoleChangeMode& inRole, const CCoinsViewCache& inputs)
+{
     // Check role validity
-    if(!isValidRole(inRole)) {
+    if (!isValidRoleIn(inRole)) {
         return false;
-
     }
 
     // Managers can perform anything (validity check made sure that they are registered and not disabled)
-    if(inRole.fRoleM) {
+    if (inRole.fRoleM) {
         return true;
     }
 
-    switch(nVersion) {
+    switch(tx.nVersion)
+    {
         case CTransaction::VERSION_COINBASE_TRANSFER:
-            // TODO
-            break;
+            // We should not reach here
+            return true;
         case CTransaction::VERSION_COIN_TRANSFER:
-            // TODO
-            break;
+            // The sender needs at least role R, but it's already checked for in isValidRoleIn
+            return true;
         case CTransaction::VERSION_ROLE_CHANGE:
-            // Check each vout to ensure correct vin role.
-            for(const CTxOut& vout: txVouts) {
-                if(!isAuthorizedRCM(inRole, vout.nRole)) {
+        case CTransaction::VERSION_ROLE_CHANGE_FEE:
+            // Check if all "payload" vouts are valid and authorized
+            for (size_t i = tx.GetPayloadOffset(); i < tx.vout.size(); ++i) {
+                CRoleChangeMode roleDelta = tx.vout[i].nRole;
+                // Check that the new role set is valid
+                if (!isValidRoleOut(roleDelta))
                     return false;
+                // Retrieve the previous role set and calculate which roles have been changed
+                std::cout << __func__ << ":" << __LINE__ << "> Fetching old roles for vout: " << tx.vout[i].ToString() << std::endl; // FIXME 
+                auto oldRoles = inputs.FetchOldRole(Coin(tx.vout[i], 1, false));
+                if (oldRoles.size() > 0) {
+                    std::cout << __func__ << ":" << __LINE__ << "> old roles: " << oldRoles.front().out.nRole.ToString() << std::endl; // FIXME 
+                    std::cout << __func__ << ":" << __LINE__ << "> new roles: " << roleDelta.ToString() << std::endl; // FIXME 
+                    roleDelta ^= oldRoles.front().out.nRole;
+                    std::cout << __func__ << ":" << __LINE__ << "> change...: " << roleDelta.ToString() << std::endl; // FIXME 
                 }
+                else std::cout << __func__ << ":" << __LINE__ << "> Cannot fetch old roles" << std::endl; // FIXME 
+                // Check if the user changing the role set is authorized to do so
+                if (!isAuthorizedRCM(inRole, roleDelta))
+                    return false;
             }
             return true;
-        case CTransaction::VERSION_ROLE_CHANGE_FEE:
-            // Check each vout to ensure correct vin role.
-            // Note: the first vout correspond to the change and should not be checked
-            for(unsigned int i = 1; i < txVouts.size(); ++i) {
-                const CTxOut& vout = txVouts[i];
-
-                if(!isAuthorizedRCM(inRole, vout.nRole)) {
-                    return false;
-                }
-            }
-            break;
         case CTransaction::VERSION_POLICY_CHANGE:
-            // TODO
-            break;
         case CTransaction::VERSION_POLICY_CHANGE_FEE:
             // TODO
             break;
         default:
-            throw std::ios_base::failure(std::string(__func__) + ":" + std::to_string(__LINE__) + "> Unknown transaction version: " + std::to_string(nVersion)); // FIXME
+            throw std::ios_base::failure(std::string(__func__) + ":" + std::to_string(__LINE__) + "> Unknown transaction version: " + std::to_string(tx.nVersion)); // FIXME
             return false;
     }
 
@@ -347,48 +386,154 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
                          strprintf("%s: inputs missing/spent", __func__));
     }
 
-    // Assert that the first vin points to a role change UTXO
-    if (tx.vin.size() > 0) {
-        const COutPoint &prevout = tx.vin[0].prevout;
-        const Coin& coin = inputs.AccessCoin(prevout);
+    CTxDestination dest1, dest2;
 
-        if (coin.out.nTxType != CTxOut::ROLE_CHANGE) {
-            return state.Invalid(false, REJECT_INVALID, "bad-txns-first-vin-not-roles");
+    // Special case of a miner trying to spend a coinbase
+    if (tx.nVersion == CTransaction::VERSION_COINBASE_TRANSFER) {
+        // Ensure that all vin are coinbases
+        for (const CTxIn in : tx.vin) {
+            const Coin& prevout = inputs.AccessCoin(in.prevout);
+            assert(prevout.out.nTxType == CTxOut::COIN_TRANSFER);
+            if (!prevout.IsCoinBase())
+                return state.Invalid(false, REJECT_INVALID, "bad-txns-coinbase-expected");
+        }
+    }
+    else
+    {
+        // Retrieve the first vin's utxo
+        const COutPoint &cred_prevout = tx.vin[0].prevout;
+        const Coin& credentials = inputs.AccessCoin(cred_prevout);
+
+        // Assert that the first vin points to a role change utxo
+        if (credentials.out.nTxType != CTxOut::ROLE_CHANGE) {
+            return state.Invalid(false, REJECT_INVALID, "bad-txns-missing-credentials");
         }
 
-        if(!isAuthorized(tx.nVersion, coin.out.nRole, tx.vout)) {
+        // Assert that the first vout is a "role repeat"
+        if (tx.vout[0].nTxType != CTxOut::ROLE_CHANGE) {
+            return state.Invalid(false, REJECT_INVALID, "bad-txns-missing-rolerepeat");
+        }
+
+        // Ensure that the account has sufficient privileges to perform the operation
+        if(!isAuthorized(tx, credentials.out.nRole, inputs)) {
             return state.Invalid(false, REJECT_INVALID, "bad-txns-not-authorized");
         }
 
-        // FIXME Add further validation
-        // FIXME Get the address from this vin and check if it's the same in the following vins
+        // Ensure that all vins are using the same address, so that one cannot use its privileges with another address
+        // Also ensure that all vins except the first are coin transfer utxo
+        assert(ExtractDestination(credentials.out.scriptPubKey, dest1));
+        for (size_t i = 1; i < tx.vin.size(); ++i) {
+            const COutPoint &prevout = tx.vin[i].prevout;
+            const Coin& coin = inputs.AccessCoin(prevout);
+            if (coin.out.nTxType != CTxOut::COIN_TRANSFER)
+                return state.Invalid(false, REJECT_INVALID, "bad-txns-coin-transfer-expected");
+            assert(ExtractDestination(coin.out.scriptPubKey, dest2));
+            if (dest1 != dest2)
+                return state.Invalid(false, REJECT_INVALID, "bad-txns-address-mismatch");
+        }
+
+        // Ensure that the first vout uses the vin address ("role repeat")
+        // FIXME (also change address of coinbase transfer)
+        assert(ExtractDestination(tx.vout[0].scriptPubKey, dest2));
+        if (dest1 != dest2)
+            return state.Invalid(false, REJECT_INVALID, "bad-txns-address-mismatch");
+
+        // Check that the change address is the same as the vin address
+        switch (tx.nVersion)
+        {
+            case CTransaction::VERSION_COIN_TRANSFER:
+            case CTransaction::VERSION_ROLE_CHANGE_FEE:
+            case CTransaction::VERSION_POLICY_CHANGE_FEE:
+                assert(tx.vout.size() > 1);
+                assert(ExtractDestination(tx.vout[1].scriptPubKey, dest2));
+                if (dest1 != dest2)
+                    return state.Invalid(false, REJECT_INVALID, "bad-txns-address-mismatch");
+                break;
+            default:
+                break;
+        }
+
+        // Check the type of the following vouts
+        CTxOut::TxType txType = CTxOut::UNINITIALIZED;
+        switch (tx.nVersion)
+        {
+            case CTransaction::VERSION_COIN_TRANSFER:
+            case CTransaction::VERSION_COINBASE_TRANSFER:
+                txType = CTxOut::COIN_TRANSFER;
+                break;
+            case CTransaction::VERSION_ROLE_CHANGE:
+            case CTransaction::VERSION_ROLE_CHANGE_FEE:
+                txType = CTxOut::ROLE_CHANGE;
+                break;
+            case CTransaction::VERSION_POLICY_CHANGE:
+            case CTransaction::VERSION_POLICY_CHANGE_FEE:
+                txType = CTxOut::POLICY_CHANGE;
+                break;
+            default:
+                return state.Invalid(false, REJECT_INVALID, "bad-txns-invalid-txversion");
+        }
+        for (size_t i = tx.GetPayloadOffset(); i < tx.vout.size(); ++i) {
+            if (tx.vout[i].nTxType != txType)
+                return state.Invalid(false, REJECT_INVALID, "bad-txns-invalid-vouttype");
+        }
+
+        // Check the value of the "role repeat" vout
+        switch (tx.nVersion)
+        {
+            case CTransaction::VERSION_ROLE_CHANGE:
+            case CTransaction::VERSION_ROLE_CHANGE_FEE:
+                // A user is allowed to drop its privileges to attach itself to a new parent
+                if (tx.vout[0].nRole == CRoleChangeMode())
+                    break;
+                // Fallthrough
+            case CTransaction::VERSION_COIN_TRANSFER:
+            case CTransaction::VERSION_POLICY_CHANGE:
+            case CTransaction::VERSION_POLICY_CHANGE_FEE:
+                // If the "role repeat" is the same as the current role, we're good
+                if (tx.vout[0].nRole == credentials.out.nRole)
+                    break;
+                return state.Invalid(false, REJECT_INVALID, "bad-txns-invalid-rolerepeat");
+            case CTransaction::VERSION_COINBASE_TRANSFER:
+                // No "role repeat" for this tx type
+                break;
+            default:
+                return state.Invalid(false, REJECT_INVALID, "bad-txns-invalid-txversion");
+        }
+
+        // Check that the following vouts don't use the vin address
+        for (size_t i = tx.GetPayloadOffset(); i < tx.vout.size(); ++i) {
+            assert(ExtractDestination(tx.vout[i].scriptPubKey, dest2));
+            if (dest1 == dest2)
+                return state.Invalid(false, REJECT_INVALID, "bad-txns-address-reuse");
+        }
     }
 
-    int i = 1; // Start collecting fees at the second vin since the first vin is a role for most tx
+    // Calculate fees
     switch (tx.nVersion)
     {
         case CTransaction::VERSION_ROLE_CHANGE:
         case CTransaction::VERSION_POLICY_CHANGE:
             // Free role/policy change transactions don't require a fee
             // FIXME Make sure that the current policy allows for these transaction, but perhaps elsewhere
-	        txfee = 0;
-            return true;
+            txfee = 0;
+            break;
         case CTransaction::VERSION_COINBASE_TRANSFER:
-            i = 0; // Start collecting fees at the first vin since there is not role vin for this type of tx
-            [[fallthrough]];
         case CTransaction::VERSION_COIN_TRANSFER:
         case CTransaction::VERSION_ROLE_CHANGE_FEE:
         case CTransaction::VERSION_POLICY_CHANGE_FEE:
         {
             CAmount nValueIn = 0;
-            while (i < tx.vin.size()) {
 
-                const COutPoint &prevout = tx.vin[i++].prevout;
+            // Check the amount of coins used as input
+            for (size_t i = 0; i < tx.vin.size(); ++i) {
+
+                const COutPoint &prevout = tx.vin[i].prevout;
                 const Coin& coin = inputs.AccessCoin(prevout);
-                if (coin.out.nTxType != CTxOut::COIN_TRANSFER) {
-                    coin.out.Check(__func__, __LINE__); // FIXME
-                    return state.Invalid(false, REJECT_INVALID, "bad-txns-following-vin-not-coins");
-                }
+
+                if (coin.out.nTxType != CTxOut::COIN_TRANSFER)
+                    // Skip non-coin transfer vins
+                    continue;
+
                 assert(!coin.IsSpent());
 
                 // If prev is coinbase, check that it's matured
@@ -405,6 +550,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
                 }
             }
 
+            // Compare the amount used as inputs to the amount used as outputs
             const CAmount value_out = tx.GetValueOut();
             if (nValueIn < value_out) {
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-in-belowout", false,
@@ -418,10 +564,11 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
             }
 
             txfee = txfee_aux;
-            return true;
+            break;
         }
         default:
-            throw std::ios_base::failure(std::string(__func__) + ":" + std::to_string(__LINE__) + "> Unknown transaction version: " + std::to_string(tx.nVersion)); // FIXME
-            return false;
+            return state.Invalid(false, REJECT_INVALID, "bad-txns-invalid-txversion");
     }
+
+    return true;
 }

@@ -2191,6 +2191,7 @@ UniValue gettransaction(const JSONRPCRequest& request)
                 entry.push_back(Pair("fee", ValueFromAmount(nFee)));
             break;
         case CTransaction::VERSION_COIN_TRANSFER:
+        case CTransaction::VERSION_COINBASE_TRANSFER:
             entry.push_back(Pair("amount", ValueFromAmount(nNet - nFee)));
             if (wtx.IsFromMe(filter))
                 entry.push_back(Pair("fee", ValueFromAmount(nFee)));

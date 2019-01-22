@@ -16,6 +16,7 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <list>
 
 #include <unordered_map>
 
@@ -79,6 +80,18 @@ public:
     size_t DynamicMemoryUsage() const {
         return memusage::DynamicUsage(out.scriptPubKey);
     }
+
+    std::string ToString() const {
+        return std::string("Coin(" + out.ToString() + ", coinbase=" + std::to_string(fCoinBase) + ", height=" + std::to_string(nHeight));
+    }
+
+    friend bool operator==(const Coin& a, const Coin& b)
+    {
+        return (a.out       == b.out       &&
+                a.fCoinBase == b.fCoinBase &&
+                a.nHeight   == b.nHeight);
+    }
+
 };
 
 class SaltedOutpointHasher
@@ -175,6 +188,12 @@ public:
 
     //! Estimate database size (0 if not implemented)
     virtual size_t EstimateSize() const { return 0; }
+
+    //! Fetch old role UTXOs
+    virtual std::list<Coin> FetchOldRole(const Coin& coin) const { return std::list<Coin>(); }
+
+    //! Erase an old role UTXOs
+    virtual void EraseOldRole(Coin& coin) { return; }
 };
 
 
@@ -292,6 +311,12 @@ public:
 
     //! Check whether all prevouts of the transaction are present in the UTXO set represented by this view
     bool HaveInputs(const CTransaction& tx) const;
+
+    //! Fetch old role UTXOs
+    std::list<Coin> FetchOldRole(const Coin& coin) const override;
+
+    //! Erase old role UTXOs
+    void EraseOldRole(Coin& coin) override;
 
 private:
     CCoinsMap::iterator FetchCoin(const COutPoint &outpoint) const;
