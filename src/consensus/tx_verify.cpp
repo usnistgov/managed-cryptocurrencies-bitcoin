@@ -193,7 +193,6 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
         }
         case CTransaction::VERSION_COIN_TRANSFER:
         {
-            if (!tx.IsCoinBase()) // FIXME
             // Check if the first vout is a "role repeat"
             if (tx.vout[0].nTxType != CTxOut::ROLE_CHANGE)
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-wrong-type");
