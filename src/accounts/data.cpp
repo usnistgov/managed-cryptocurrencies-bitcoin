@@ -15,10 +15,12 @@ bool CManagedAccountData::AddChild(CTxDestination child)
 
 bool CManagedAccountData::RemoveChild(CTxDestination child)
 {
-    if(std::find(accountChildren.begin(), accountChildren.end(), child) == accountChildren.end()) {
+    auto childIter = std::find(accountChildren.begin(), accountChildren.end(), child);
+
+    if(childIter == accountChildren.end()) {
         return false;
     } else {
-        std::remove(accountChildren.begin(), accountChildren.end(), child);
+        accountChildren.erase(childIter);
         return true;
     }
 }

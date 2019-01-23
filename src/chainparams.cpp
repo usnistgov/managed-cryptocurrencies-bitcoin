@@ -133,15 +133,15 @@ public:
         nDefaultPort = 8333;
         nPruneAfterHeight = 100000;
 
-        uint256 hashGenesisBlock = uint256S("0x00000000ce59db056aa3f5d5d2cf826e6f05a3a465d46f738e3d66f486567518");
-        uint256 hashMerkleRoot   = uint256S("0x431817a2734cfb2d2ff83eeee807e6b83c5eda87433c9142525d5191ee5b9d35");
+        uint256 hashGenesisBlock = uint256S("0x929e5357d3307de155056c86427189511fc84f6b879462bb090041651d0b86c5");
+        uint256 hashMerkleRoot   = uint256S("0xb40d7beeb2b3883dc762561a9899b144ecfc130a2c5e6b0a0f4a3978c54bb068");
 
         genesis = CreateGenesisBlock(1538956800, 327113298, 0x1d00ffff, 1, GetManagementPolicy());
         consensus.hashGenesisBlock = genesis.GetHash();
         if (consensus.hashGenesisBlock != hashGenesisBlock || genesis.hashMerkleRoot != hashMerkleRoot) {
             fprintf(stderr, "Mainnet genesis block needs to be re-mined:\n");
             fprintf(stderr, "\tVersion...............: %d\n", genesis.nVersion);
-            fprintf(stderr, "\tPrevious block hash...: %s\n", genesis.hashPrevBlock.ToString().c_str());
+            fprintf(stderr, "\tBlock hash............: %s\n", consensus.hashGenesisBlock.ToString().c_str());
             fprintf(stderr, "\tMerkle root...........: %s\n", genesis.hashMerkleRoot.ToString().c_str());
             fprintf(stderr, "\tTimestamp.............: %u\n", genesis.nTime);
             fprintf(stderr, "\tDifficulty target.....: %u\n", genesis.nBits);
@@ -259,7 +259,7 @@ public:
         if (consensus.hashGenesisBlock != hashGenesisBlock || genesis.hashMerkleRoot != hashMerkleRoot) {
             fprintf(stderr, "Testnet genesis block needs to be re-mined:\n");
             fprintf(stderr, "\tVersion...............: %d\n", genesis.nVersion);
-            fprintf(stderr, "\tPrevious block hash...: %s\n", genesis.hashPrevBlock.ToString().c_str());
+            fprintf(stderr, "\tBlock hash............: %s\n", consensus.hashGenesisBlock.ToString().c_str());
             fprintf(stderr, "\tMerkle root...........: %s\n", genesis.hashMerkleRoot.ToString().c_str());
             fprintf(stderr, "\tTimestamp.............: %u\n", genesis.nTime);
             fprintf(stderr, "\tDifficulty target.....: %u\n", genesis.nBits);
@@ -358,7 +358,7 @@ public:
         if (consensus.hashGenesisBlock != hashGenesisBlock || genesis.hashMerkleRoot != hashMerkleRoot) {
             fprintf(stderr, "Regtest genesis block needs to be re-mined:\n");
             fprintf(stderr, "\tVersion...............: %d\n", genesis.nVersion);
-            fprintf(stderr, "\tPrevious block hash...: %s\n", genesis.hashPrevBlock.ToString().c_str());
+            fprintf(stderr, "\tBlock hash............: %s\n", consensus.hashGenesisBlock.ToString().c_str());
             fprintf(stderr, "\tMerkle root...........: %s\n", genesis.hashMerkleRoot.ToString().c_str());
             fprintf(stderr, "\tTimestamp.............: %u\n", genesis.nTime);
             fprintf(stderr, "\tDifficulty target.....: %u\n", genesis.nBits);

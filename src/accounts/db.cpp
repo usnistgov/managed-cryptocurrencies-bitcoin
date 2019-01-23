@@ -44,9 +44,15 @@ bool CManagedAccountDB::UpdateAccount(CTxDestination address, CManagedAccountDat
 }
 
 bool CManagedAccountDB::DeleteAccount(CTxDestination address) {
-    // FIXME Not yet implemented
-    SaveToDisk();
-    return false;
+    auto accountIter = accountDB.find(address);
+
+    if(accountIter == accountDB.end()) {
+        return false;
+    } else {
+        accountDB.erase(accountIter);
+        SaveToDisk();
+        return true;
+    }
 }
 
 bool CManagedAccountDB::GetAccountByAddress(CTxDestination address, CManagedAccountData& account) {

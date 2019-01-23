@@ -1,20 +1,19 @@
-// Copyright (c) 2018-2019 National Institute of Standards and Technology
-// Distributed under the MIT software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
-
 #include <test/test_bitcoin.h>
 #include <boost/test/unit_test.hpp>
 
 #include <accounts/data.h>
 #include <accounts/db.h>
 
+BOOST_FIXTURE_TEST_SUITE(accounts_tests, BasicTestingSetup)
+
 
 BOOST_AUTO_TEST_CASE(account_data_tests)
 {
     std::vector<std::string> sampleAddresses = {
-        "1GVY5eZvtc5bA6EFEGnpqJeHUC5YaV5ds0",
-        "1GVY5eZvtc5bA6EFEGnpqJeHUC5YaV5ds1"
+        "1ArmQouzU8cvAt4muQJ9srPy7CXVcgbSmU",
+        "1NWqvweBVX1D5C1E9h5vbdX85L7TsDAsgu"
     };
+    bool status;
 
     // Check default constructor
     CManagedAccountData accountDataA;
@@ -32,6 +31,7 @@ BOOST_AUTO_TEST_CASE(account_data_tests)
     // Check constructor with roles
     std::string strRolesB = "M..R..";
     CRoleChangeMode rolesB;
+    ParseRoles(strRolesB, rolesB);
     CManagedAccountData accountDataB(rolesB);
 
     BOOST_CHECK(
@@ -45,10 +45,15 @@ BOOST_AUTO_TEST_CASE(account_data_tests)
     );
 
     // Check constructor with roles and parent
-    std::string strRolesC = ".L.R..";
+    std::string strRolesC = "..LR..";
     CRoleChangeMode rolesC;
+    ParseRoles(strRolesC, rolesC);
     CTxDestination parentC = DecodeDestination(sampleAddresses.at(0));
     CManagedAccountData accountDataC(rolesC, parentC);
+
+    std::cout << "RolesC == " << ValueFromRoles(accountDataC.GetRoles()).get_str() << std::endl;
+    std::cout << "RolesC == " << ValueFromRoles(rolesC).get_str() << std::endl;
+    std::cout << "ParentC == " << EncodeDestination(parentC) << std::endl;
 
     BOOST_CHECK(
         ValueFromRoles(accountDataC.GetRoles()).get_str() == strRolesC
@@ -60,28 +65,30 @@ BOOST_AUTO_TEST_CASE(account_data_tests)
         IsValidDestination(accountDataC.GetParent())
     );
 
-    accountDataC.AddChild(DecodeDestination(sampleAddresses.at(1)));
+    status = accountDataC.AddChild(DecodeDestination(sampleAddresses.at(1)));
 
     BOOST_CHECK(
         accountDataC.GetChildren().size() == 1
     );
+    BOOST_CHECK(
+        status
+    );
 
-    accountDataC.RemoveChild(DecodeDestination(sampleAddresses.at(1)));
+    status = accountDataC.RemoveChild(DecodeDestination(sampleAddresses.at(1)));
 
     BOOST_CHECK(
         accountDataC.GetChildren().size() == 0
+    );
+    BOOST_CHECK(
+        status
     );
 }
 
 BOOST_AUTO_TEST_CASE(account_db_tests)
 {
     std::vector<std::string> sampleAddresses = {
-        "1GVY5eZvtc5bA6EFEGnpqJeHUC5YaV5ds0",
-        "1GVY5eZvtc5bA6EFEGnpqJeHUC5YaV5ds1",
-        "1GVY5eZvtc5bA6EFEGnpqJeHUC5YaV5ds2",
-        "1GVY5eZvtc5bA6EFEGnpqJeHUC5YaV5ds3",
-        "1GVY5eZvtc5bA6EFEGnpqJeHUC5YaV5ds4",
-        "1GVY5eZvtc5bA6EFEGnpqJeHUC5YaV5ds5",
+            "1ArmQouzU8cvAt4muQJ9srPy7CXVcgbSmU",
+            "1NWqvweBVX1D5C1E9h5vbdX85L7TsDAsgu"
     };
     bool status;
     CManagedAccountData sampleAccountData;
@@ -99,19 +106,29 @@ BOOST_AUTO_TEST_CASE(account_db_tests)
     status = accountDB.UpdateAccount(DecodeDestination(sampleAddresses.at(1)), sampleAccountData);
 
     BOOST_CHECK(
-        accountDB.size() == 2 && status
+        accountDB.size() == 2
+    );
+    BOOST_CHECK(
+        status
     );
 
     status = accountDB.UpdateAccount(DecodeDestination(sampleAddresses.at(1)), sampleAccountData);
 
     BOOST_CHECK(
-        accountDB.size() == 2 && status
+        accountDB.size() == 2
+    );
+    BOOST_CHECK(
+        status
     );
 
     status = accountDB.DeleteAccount(DecodeDestination(sampleAddresses.at(0)));
 
     BOOST_CHECK(
-        accountDB.size() == 1 && status
+        accountDB.size() == 1
+    );
+
+    BOOST_CHECK(
+        status
     );
 
     CManagedAccountData accountDataTest;
@@ -149,4 +166,4 @@ BOOST_AUTO_TEST_CASE(account_db_tests)
     );
 }
 
-
+BOOST_AUTO_TEST_SUITE_END()
