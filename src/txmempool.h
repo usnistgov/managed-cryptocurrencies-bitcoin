@@ -15,6 +15,7 @@
 
 #include <amount.h>
 #include <coins.h>
+#include <undo.h>
 #include <pubkey.h>
 #include <indirectmap.h>
 #include <policy/feerate.h>
@@ -710,7 +711,7 @@ public:
     //! Fetch old role UTXOs
     std::list<Coin> FetchOldRole(const Coin& coin) const override;
     //! Erase old role UTXOs
-    void EraseOldRole(Coin& coin) override;
+    void EraseOldRole(Coin& coin, CTxUndo& txundo) override;
 };
 
 /**

@@ -3,7 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <checkpoints.h>
-
+#include <coins.h>
 #include <chain.h>
 #include <chainparams.h>
 #include <reverse_iterator.h>

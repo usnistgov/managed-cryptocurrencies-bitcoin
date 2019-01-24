@@ -196,7 +196,7 @@ std::list<Coin> CCoinsViewDB::FetchOldRole(const Coin& coin) const
 }
 
 //! Erase old role UTXOs
-void CCoinsViewDB::EraseOldRole(Coin& coin)
+void CCoinsViewDB::EraseOldRole(Coin& coin, CTxUndo& txundo)
 {
     // TODO
 }

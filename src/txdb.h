@@ -7,6 +7,7 @@
 #define BITCOIN_TXDB_H
 
 #include <coins.h>
+#include <undo.h>
 #include <dbwrapper.h>
 #include <chain.h>
 
@@ -82,7 +83,7 @@ public:
     //! Fetch old role UTXOs
     std::list<Coin> FetchOldRole(const Coin& coin) const override;
     //! Erase old role UTXOs
-    void EraseOldRole(Coin& coin) override;
+    void EraseOldRole(Coin& coin, CTxUndo& txundo) override;
 
     //! Attempt to update from an older database format. Returns whether an error occurred.
     bool Upgrade();

@@ -33,6 +33,7 @@
 #include <txdb.h>
 #include <txmempool.h>
 #include <ui_interface.h>
+#include <coins.h>
 #include <undo.h>
 #include <util.h>
 #include <utilmoneystr.h>
@@ -1313,6 +1314,14 @@ void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txund
             txundo.vprevout.emplace_back();
             bool is_spent = inputs.SpendCoin(txin.prevout, &txundo.vprevout.back());
             assert(is_spent);
+        }
+        switch (tx.nVersion) {
+            case CTransaction::VERSION_ROLE_CHANGE:
+            case CTransaction::VERSION_ROLE_CHANGE_FEE:
+                for (size_t i = tx.GetPayloadOffset(); i < tx.vout.size(); ++i) {
+                    assert(tx.vout[i].nTxType == CTxOut::ROLE_CHANGE);
+                    inputs.EraseOldRole(coin, txundo);
+                }
         }
     }
     // add outputs

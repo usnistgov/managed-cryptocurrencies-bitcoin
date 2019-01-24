@@ -101,7 +101,7 @@ std::list<Coin> CCoinsViewCache::FetchOldRole(const Coin& coin) const {
     return oldRoleList;
 }
 
-void CCoinsViewCache::EraseOldRole(Coin& coin) {
+void CCoinsViewCache::EraseOldRole(Coin& coin, CTxUndo& txundo) {
     CCoinsMap::iterator it;
     CTxDestination dest1, dest2;
     assert(ExtractDestination(coin.out.scriptPubKey, dest1));
@@ -113,6 +113,7 @@ void CCoinsViewCache::EraseOldRole(Coin& coin) {
         if (dest1 != dest2) continue;
         // Found the old role UTXO, now delete it
         cachedCoinsUsage -= it->second.coin.DynamicMemoryUsage();
+        txundo.vprevout.push_back(it->second.coin);
         if (it->second.flags & CCoinsCacheEntry::FRESH) {
             // If fresh, we're done, just delete the utxo
             std::cerr << __func__ << ":" << __LINE__ << "> FRESH: " << it->second.coin.ToString() << std::endl; // FIXME
@@ -127,16 +128,16 @@ void CCoinsViewCache::EraseOldRole(Coin& coin) {
         break;
     }
     if (base)
-        ((CCoinsViewCache*)base)->EraseOldRole(coin);
+        ((CCoinsViewCache*)base)->EraseOldRole(coin, txundo);
 }
 
 void CCoinsViewCache::AddCoin(const COutPoint &outpoint, Coin&& coin, bool possible_overwrite) {
     assert(!coin.IsSpent());
     if (coin.out.scriptPubKey.IsUnspendable()) return;
     // Erase an old role if a new one has been granted to an address
-    if (coin.out.nTxType == CTxOut::ROLE_CHANGE && outpoint.n > 0) {
-        EraseOldRole(coin);
-    }
+// FIXME   if (coin.out.nTxType == CTxOut::ROLE_CHANGE && outpoint.n > 0) {
+//        EraseOldRole(coin);
+//    }
     CCoinsMap::iterator it;
     bool inserted;
     std::tie(it, inserted) = cacheCoins.emplace(std::piecewise_construct, std::forward_as_tuple(outpoint), std::tuple<>());
