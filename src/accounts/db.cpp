@@ -118,6 +118,8 @@ void CManagedAccountDB::LoadFromDisk() {
     while(file >> address >> accountData)
     {
         accountDB.insert(std::make_pair(DecodeDestination(address), accountData));
+        accountData.~CManagedAccountData();
+        new (&accountData) CManagedAccountData();
     }
 
     file.close();
