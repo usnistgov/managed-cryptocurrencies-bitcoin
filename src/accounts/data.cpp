@@ -41,13 +41,13 @@ CRoleChangeMode CManagedAccountData::GetRoles()
 }
 
 std::string CManagedAccountData::ToString() {
-    std::string output = ValueFromRoles(GetRoles()).get_str() + ";" + EncodeDestination(GetParent()) + ";";
+    std::string output = ValueFromRoles(GetRoles()).get_str() + " | " + EncodeDestination(GetParent()) + " | ";
 
     for(int i=0; i<accountChildren.size(); i++) {
         output += EncodeDestination(accountChildren.at(i));
 
         if(i != accountChildren.size() - 1) {
-            output += "|";
+            output += " , ";
         }
     }
 

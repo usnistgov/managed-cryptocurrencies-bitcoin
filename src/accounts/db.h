@@ -8,7 +8,11 @@
 #include <sys/stat.h>
 #include <util.h>
 
-
+/*
+TODOs:
+ - check that there is always a root account.
+ - check that there is no more than 1 root account.
+*/
 class CManagedAccountDB {
 public:
     CManagedAccountDB() {
@@ -28,6 +32,8 @@ public:
     bool GetAccountByAddress(CTxDestination address, CManagedAccountData& account);
     bool ExistsAccountForAddress(CTxDestination address);
     int size();
+    std::string ToString();
+
 private:
     void InitDB();
 

@@ -12,6 +12,12 @@ bool CManagedAccountDB::AddAccount(CTxDestination address, CManagedAccountData a
     std::cout << account.ToString() << std::endl;  // FIXME
     std::cout << __func__ << ":" << __LINE__ << "> ~~~~~~ " << std::endl;  // FIXME
 
+    if (EncodeDestination(account.GetParent()) == ""){
+        std::cout << "account parent:" << EncodeDestination(account.GetParent()) << ":" << std::endl;
+        std::cout << "no parent, we consider it root" << std::endl;
+        rootAccountAddress = address;
+    } 
+    
     accountDB.insert(std::make_pair(address,account));
 
     SaveToDisk();
@@ -37,6 +43,11 @@ bool CManagedAccountDB::UpdateAccount(CTxDestination address, CManagedAccountDat
     if(!ExistsAccountForAddress(address)) {
         return AddAccount(address, account);
     } else {
+        if (EncodeDestination(account.GetParent()) == ""){
+            std::cout << "account parent:" << EncodeDestination(account.GetParent()) << ":" << std::endl;
+            std::cout << "no parent, we consider it root" << std::endl;
+            rootAccountAddress = address;
+        } 
         accountDB.at(address) = account;
         SaveToDisk();
         return true;
@@ -90,6 +101,11 @@ void CManagedAccountDB::InitDB() {
     }
 }
 
+CTxDestination CManagedAccountDB::GetRootAddress(){
+    // TODO check that is rootAccountAddress is empty or not valid, that it is reloaded from the existing DB
+    return rootAccountAddress;
+}
+
 // Serialization methods
 void CManagedAccountDB::SaveToDisk() {
     std::ofstream file;
@@ -125,3 +141,16 @@ void CManagedAccountDB::LoadFromDisk() {
     file.close();
     std::cout << __func__ << ":" << __LINE__ << "> " << accountDB.size() << " account(s) loaded" << std::endl;  // FIXME
 }
+
+std::string CManagedAccountDB::ToString(){
+    std::string output = "account list:\n" ;
+    for (auto const& acc : accountDB)
+    {
+        output += EncodeDestination(acc.first) + " | " + acc.second.ToString() +"\n";
+    }
+    output += "account list end\n";
+
+    return output;
+}
+
+

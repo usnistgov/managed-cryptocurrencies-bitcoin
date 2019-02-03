@@ -77,6 +77,7 @@ endif
 BITCOIN_CORE_H = \
   accounts/data.h \
   accounts/db.h \
+  accounts/visualization.h \ 
   addrdb.h \
   addrman.h \
   base58.h \
@@ -191,6 +192,7 @@ libbitcoin_server_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_server_a_SOURCES = \
   accounts/data.cpp \
   accounts/db.cpp \
+  accounts/visualization.cpp \ 
   addrdb.cpp \
   addrman.cpp \
   bloom.cpp \
