@@ -40,6 +40,11 @@ CRoleChangeMode CManagedAccountData::GetRoles()
     return accountRoles;
 }
 
+void CManagedAccountData::SetRoles(CRoleChangeMode inputRoles)
+{
+    accountRoles = inputRoles;
+}
+
 std::string CManagedAccountData::ToString() {
     std::string output = ValueFromRoles(GetRoles()).get_str() + " | " + EncodeDestination(GetParent()) + " | ";
 

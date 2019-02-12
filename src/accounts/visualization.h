@@ -25,7 +25,7 @@ public:
         }
     }
 
-    void VisualizeGraph();
+    std::string VisualizeGraph();
     // CAccountDataVisualization::Graph getGraph();
 
 private:

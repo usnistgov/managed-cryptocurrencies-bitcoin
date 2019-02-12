@@ -34,6 +34,7 @@ public:
     bool AddChild(CTxDestination child);
     bool RemoveChild(CTxDestination child);
     CRoleChangeMode GetRoles();
+    void SetRoles(CRoleChangeMode inputRoles);
     CTxDestination GetParent();
     std::vector <CTxDestination> GetChildren();
 

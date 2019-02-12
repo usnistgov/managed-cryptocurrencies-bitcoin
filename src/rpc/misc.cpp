@@ -5,6 +5,7 @@
 
 #include <base58.h>
 #include <chain.h>
+#include <accounts/visualization.h>
 #include <clientversion.h>
 #include <core_io.h>
 #include <crypto/ripemd160.h>
@@ -623,6 +624,30 @@ UniValue echo(const JSONRPCRequest& request)
     return request.params;
 }
 
+UniValue getrolehierarchy(const JSONRPCRequest& request)
+{
+    if (request.fHelp)
+        throw std::runtime_error(
+            "getrolehierarchy\n"
+            "\nExtract the role hierarchy saved in the node."
+        );
+
+    try
+    {
+        std::cout << "getrolehierarchy ....." << std::endl;
+        CManagedAccountDB accountDB;
+        std::cout << "Account DB OK" << std::endl;
+        CAccountDataVisualization dataVisualization(accountDB);
+        std::cout << "Dataviz Init OK" << std::endl;
+
+        return dataVisualization.VisualizeGraph();
+    }
+    catch (int e)
+    {
+        std::cout << "An exception occurred. Exception Nr. " << e << std::endl;
+    }
+}
+
 static UniValue getinfo_deprecated(const JSONRPCRequest& request)
 {
     throw JSONRPCError(RPC_METHOD_NOT_FOUND,
@@ -644,6 +669,7 @@ static const CRPCCommand commands[] =
     { "util",               "createmultisig",         &createmultisig,         {"nrequired","keys"} },
     { "util",               "verifymessage",          &verifymessage,          {"address","signature","message"} },
     { "util",               "signmessagewithprivkey", &signmessagewithprivkey, {"privkey","message"} },
+    { "util",               "getrolehierarchy",       &getrolehierarchy,       {} },
 
     /* Not shown in help */
     { "hidden",             "setmocktime",            &setmocktime,            {"timestamp"}},

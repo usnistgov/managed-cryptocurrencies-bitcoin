@@ -13,12 +13,18 @@ bool CManagedAccountDB::AddAccount(CTxDestination address, CManagedAccountData a
     std::cout << __func__ << ":" << __LINE__ << "> ~~~~~~ " << std::endl;  // FIXME
 
     if (EncodeDestination(account.GetParent()) == ""){
-        std::cout << "account parent:" << EncodeDestination(account.GetParent()) << ":" << std::endl;
-        std::cout << "no parent, we consider it root" << std::endl;
+        std::cout << "No parent, we consider it root" << std::endl;
         rootAccountAddress = address;
-    } 
+    } else {
+        std::cout << "Account parent:" << EncodeDestination(account.GetParent()) << ":" << std::endl;
+        CManagedAccountData parentAccountData;
+        GetAccountByAddress(account.GetParent(), parentAccountData);
+
+        parentAccountData.AddChild(address);
+        accountDB.at(account.GetParent()) = parentAccountData;
+    }
     
-    accountDB.insert(std::make_pair(address,account));
+    accountDB.insert(std::make_pair(address, account));
 
     SaveToDisk();
     return true;
@@ -43,18 +49,21 @@ bool CManagedAccountDB::UpdateAccount(CTxDestination address, CManagedAccountDat
     if(!ExistsAccountForAddress(address)) {
         return AddAccount(address, account);
     } else {
-        if (EncodeDestination(account.GetParent()) == ""){
-            std::cout << "account parent:" << EncodeDestination(account.GetParent()) << ":" << std::endl;
-            std::cout << "no parent, we consider it root" << std::endl;
-            rootAccountAddress = address;
-        } 
-        accountDB.at(address) = account;
+//        if (EncodeDestination(account.GetParent()) == ""){
+//            std::cout << "account parent:" << EncodeDestination(account.GetParent()) << ":" << std::endl;
+//            std::cout << "no parent, we consider it root" << std::endl;
+//            rootAccountAddress = address;
+//        }
+
+        accountDB.at(address).SetRoles(account.GetRoles());
+
         SaveToDisk();
         return true;
     }
 }
 
 bool CManagedAccountDB::DeleteAccount(CTxDestination address) {
+    // FIXME children and parents are not updated
     auto accountIter = accountDB.find(address);
 
     if(accountIter == accountDB.end()) {
@@ -133,7 +142,15 @@ void CManagedAccountDB::LoadFromDisk() {
 
     while(file >> address >> accountData)
     {
+        std::cout << accountData.ToString() << std::endl;
         accountDB.insert(std::make_pair(DecodeDestination(address), accountData));
+
+        if (EncodeDestination(accountData.GetParent()) == ""){
+            std::cout << "account parent:" << EncodeDestination(accountData.GetParent()) << ":" << std::endl;
+            std::cout << "no parent, we consider it root" << std::endl;
+            rootAccountAddress = DecodeDestination(address);
+        }
+
         accountData.~CManagedAccountData();
         new (&accountData) CManagedAccountData();
     }

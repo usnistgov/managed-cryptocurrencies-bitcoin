@@ -11,6 +11,7 @@ bool CAccountDataVisualization::LoadGraph(){
 
     std::cout << "loading graph with the following list of accounts: " << std::endl;
     std::cout << db.ToString();
+    std::cout << std::flush;
 
     Vertex rootNode = boost::add_vertex(VertexProperties{EncodeDestination(rootAddress), ValueFromRoles(rootAccount.GetRoles()).get_str()}, g);
 
@@ -45,22 +46,15 @@ void CAccountDataVisualization::LoadGraphChildren(std::vector <CTxDestination> a
 
 }
 
-void CAccountDataVisualization::VisualizeGraph(){
+std::string CAccountDataVisualization::VisualizeGraph(){
+    std::stringstream stringStream;
 
-    boost::write_graphviz(std::cout, g, [&] (std::ostream& out, Vertex v) {
-       out << "[address=\"" << g[v].address << "\"] [roles=\"" << g[v].roles << "\"]";
-      });
-    std::cout << std::flush;
+    boost::write_graphviz(stringStream, g, [&] (std::ostream& out, Vertex v) {
+       out << "[address=\"" << g[v].address << "\"] [label=\"" << g[v].roles << "\"]";
+    });
 
-    // boost::write_graphviz(std::cout, g, [&] (auto& out, auto v) {
-    //    out << "[label=\"" << g[v].roles << "\"]";
-    //   },
-    //   [&] (auto& out, auto e) {
-    //    out << "[label=\"" << g[e].name << "\"]";
-    // });
-    // std::cout << std::flush;
-
-    // boost::write_graphviz(std::cout, g,make_label_writer(get(&VertexProperties::roles, g)));
+//    std::cout << stringStream.str() << std::endl << std::flush;
+    return stringStream.str();
 }
 
 // CAccountDataVisualization::Graph CAccountDataVisualization::getGraph(){
