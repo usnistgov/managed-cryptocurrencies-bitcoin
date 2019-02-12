@@ -10,6 +10,7 @@
 #include <compressor.h>
 #include <core_memusage.h>
 #include <hash.h>
+#include <coins.h>
 #include <memusage.h>
 #include <serialize.h>
 #include <uint256.h>

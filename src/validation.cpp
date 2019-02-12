@@ -33,6 +33,7 @@
 #include <txdb.h>
 #include <txmempool.h>
 #include <ui_interface.h>
+#include <coins.h>
 #include <undo.h>
 #include <util.h>
 #include <utilmoneystr.h>
@@ -1314,9 +1315,27 @@ void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txund
             bool is_spent = inputs.SpendCoin(txin.prevout, &txundo.vprevout.back());
             assert(is_spent);
         }
+        
     }
     // add outputs
     AddCoins(inputs, tx, nHeight);
+}
+
+void FlushOldRoles(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight)
+{
+    // mark inputs spent
+    if (!tx.IsCoinBase()) {
+        switch (tx.nVersion) {
+            case CTransaction::VERSION_ROLE_CHANGE:
+            case CTransaction::VERSION_ROLE_CHANGE_FEE:
+                for (size_t i = tx.GetPayloadOffset(); i < tx.vout.size(); ++i) {
+                    assert(tx.vout[i].nTxType == CTxOut::ROLE_CHANGE);
+
+                    Coin coin = Coin(tx.vout[i], nHeight, tx.IsCoinBase());
+                    inputs.EraseOldRole(coin);
+                }
+        }
+    }
 }
 
 void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight)
@@ -1977,6 +1996,9 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
             blockundo.vtxundo.push_back(CTxUndo());
         }
         UpdateCoins(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight);
+
+        if(!fJustCheck)
+            FlushOldRoles(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight);
     }
     int64_t nTime3 = GetTimeMicros(); nTimeConnect += nTime3 - nTime2;
     LogPrint(BCLog::BENCH, "      - Connect %u transactions: %.2fms (%.3fms/tx, %.3fms/txin) [%.2fs (%.2fms/blk)]\n", (unsigned)block.vtx.size(), MILLI * (nTime3 - nTime2), MILLI * (nTime3 - nTime2) / block.vtx.size(), nInputs <= 1 ? 0 : MILLI * (nTime3 - nTime2) / (nInputs-1), nTimeConnect * MICRO, nTimeConnect * MILLI / nBlocksTotal);

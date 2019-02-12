@@ -15,6 +15,7 @@
 
 #include <amount.h>
 #include <coins.h>
+#include <undo.h>
 #include <pubkey.h>
 #include <indirectmap.h>
 #include <policy/feerate.h>

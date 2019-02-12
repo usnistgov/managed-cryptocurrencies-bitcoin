@@ -134,9 +134,9 @@ void CCoinsViewCache::AddCoin(const COutPoint &outpoint, Coin&& coin, bool possi
     assert(!coin.IsSpent());
     if (coin.out.scriptPubKey.IsUnspendable()) return;
     // Erase an old role if a new one has been granted to an address
-    if (coin.out.nTxType == CTxOut::ROLE_CHANGE && outpoint.n > 0) {
-        EraseOldRole(coin);
-    }
+// FIXME   if (coin.out.nTxType == CTxOut::ROLE_CHANGE && outpoint.n > 0) {
+//        EraseOldRole(coin);
+//    }
     CCoinsMap::iterator it;
     bool inserted;
     std::tie(it, inserted) = cacheCoins.emplace(std::piecewise_construct, std::forward_as_tuple(outpoint), std::tuple<>());
