@@ -958,7 +958,7 @@ std::list<Coin> CCoinsViewMemPool::FetchOldRole(const Coin& coin) const {
 }
 
 //! Erase old role UTXOs
-void CCoinsViewMemPool::EraseOldRole(Coin& coin, CTxUndo& txundo) {
+void CCoinsViewMemPool::EraseOldRole(Coin& coin) {
     // TODO
 }
 

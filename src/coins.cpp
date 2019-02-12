@@ -101,7 +101,7 @@ std::list<Coin> CCoinsViewCache::FetchOldRole(const Coin& coin) const {
     return oldRoleList;
 }
 
-void CCoinsViewCache::EraseOldRole(Coin& coin, CTxUndo& txundo) {
+void CCoinsViewCache::EraseOldRole(Coin& coin) {
     CCoinsMap::iterator it;
     CTxDestination dest1, dest2;
     assert(ExtractDestination(coin.out.scriptPubKey, dest1));
@@ -113,7 +113,6 @@ void CCoinsViewCache::EraseOldRole(Coin& coin, CTxUndo& txundo) {
         if (dest1 != dest2) continue;
         // Found the old role UTXO, now delete it
         cachedCoinsUsage -= it->second.coin.DynamicMemoryUsage();
-        txundo.vprevout.push_back(it->second.coin);
         if (it->second.flags & CCoinsCacheEntry::FRESH) {
             // If fresh, we're done, just delete the utxo
             std::cerr << __func__ << ":" << __LINE__ << "> FRESH: " << it->second.coin.ToString() << std::endl; // FIXME
@@ -128,7 +127,7 @@ void CCoinsViewCache::EraseOldRole(Coin& coin, CTxUndo& txundo) {
         break;
     }
     if (base)
-        ((CCoinsViewCache*)base)->EraseOldRole(coin, txundo);
+        ((CCoinsViewCache*)base)->EraseOldRole(coin);
 }
 
 void CCoinsViewCache::AddCoin(const COutPoint &outpoint, Coin&& coin, bool possible_overwrite) {

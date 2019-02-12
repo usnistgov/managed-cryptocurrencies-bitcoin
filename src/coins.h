@@ -11,7 +11,6 @@
 #include <core_memusage.h>
 #include <hash.h>
 #include <coins.h>
-#include <undo.h>
 #include <memusage.h>
 #include <serialize.h>
 #include <uint256.h>
@@ -195,7 +194,7 @@ public:
     virtual std::list<Coin> FetchOldRole(const Coin& coin) const { return std::list<Coin>(); }
 
     //! Erase an old role UTXOs
-    virtual void EraseOldRole(Coin& coin, CTxUndo& txundo) { return; }
+    virtual void EraseOldRole(Coin& coin) { return; }
 };
 
 
@@ -318,7 +317,7 @@ public:
     std::list<Coin> FetchOldRole(const Coin& coin) const override;
 
     //! Erase old role UTXOs
-    void EraseOldRole(Coin& coin, CTxUndo& txundo) override;
+    void EraseOldRole(Coin& coin) override;
 
 private:
     CCoinsMap::iterator FetchCoin(const COutPoint &outpoint) const;

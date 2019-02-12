@@ -711,7 +711,7 @@ public:
     //! Fetch old role UTXOs
     std::list<Coin> FetchOldRole(const Coin& coin) const override;
     //! Erase old role UTXOs
-    void EraseOldRole(Coin& coin, CTxUndo& txundo) override;
+    void EraseOldRole(Coin& coin) override;
 };
 
 /**
