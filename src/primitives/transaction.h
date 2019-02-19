@@ -228,7 +228,7 @@ public:
         UNINITIALIZED = 0,
         COIN_TRANSFER = 1,
         ROLE_CHANGE   = 2,
-        POLICY_CHANGE = 3,
+        POLICY_CHANGE = 3
     } nTxType;
 
     void Stack(const char* funcname, int lineno) const // FIXME
@@ -349,8 +349,10 @@ public:
     static const int32_t VERSION_COIN_TRANSFER     = 1945;
     static const int32_t VERSION_ROLE_CHANGE       = 1946;
     static const int32_t VERSION_POLICY_CHANGE     = 1947;
-    static const int32_t VERSION_ROLE_CHANGE_FEE   = 1948;
-    static const int32_t VERSION_POLICY_CHANGE_FEE = 1949;
+    static const int32_t VERSION_COIN_CREATION     = 1948;
+    static const int32_t VERSION_ROLE_CHANGE_FEE   = 1949;
+    static const int32_t VERSION_POLICY_CHANGE_FEE = 1950;
+    static const int32_t VERSION_COIN_CREATION_FEE = 1951;
 
     // The local variables are made const to prevent unintended modification
     // without updating the cached hash value. However, CTransaction is not
@@ -411,6 +413,7 @@ public:
             case VERSION_COIN_TRANSFER:
             case VERSION_ROLE_CHANGE_FEE:
             case VERSION_POLICY_CHANGE_FEE:
+            case VERSION_COIN_CREATION_FEE:
                 return 2;
             default:
                 return 1;
@@ -575,6 +578,8 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
                 case CTransaction::VERSION_POLICY_CHANGE_FEE:
                     txtype = CTxOut::POLICY_CHANGE;
                     break;
+                case CTransaction::VERSION_COIN_CREATION:
+                case CTransaction::VERSION_COIN_CREATION_FEE:
                 case CTransaction::VERSION_COIN_TRANSFER:
                     txtype = CTxOut::COIN_TRANSFER;
                     break;

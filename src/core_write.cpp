@@ -114,6 +114,19 @@ UniValue ValueFromTxOut(const CTxOut& txout, int32_t txversion, unsigned int ind
                 out.pushKV("policy", ValueFromPolicy(txout.nPolicy));
             }
             break;
+        case CTransaction::VERSION_COIN_CREATION:
+        case CTransaction::VERSION_COIN_CREATION_FEE:
+            // First vout is a role repeat (to prevent replay attacks)
+            if (index == 0) {
+                assert(txout.nTxType == CTxOut::ROLE_CHANGE);
+                out.pushKV("roles", ValueFromRoles(txout.nRole));
+            }
+            // Following vouts are coin transfer
+            else {
+                assert(txout.nTxType == CTxOut::COIN_TRANSFER);
+                out.pushKV("value", ValueFromAmount(txout.nValue));
+            }
+            break;
         default:
             throw std::ios_base::failure(std::string(__func__) + ":" + std::to_string(__LINE__) + "> Unknown transaction version: " + std::to_string(txversion)); // FIXME
     }
