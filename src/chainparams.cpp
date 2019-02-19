@@ -251,8 +251,8 @@ public:
         nDefaultPort = 18333;
         nPruneAfterHeight = 1000;
 
-        uint256 hashGenesisBlock = uint256S("0x0000000075668372729f5e2a89495a9d8d0cc26d3ff2807f16e6191adece26b4");
-        uint256 hashMerkleRoot   = uint256S("0x86e92ece40c6f4fa479d46d078badceffa31921b93ae7fa8a3cc92cd7feb94b1");
+        uint256 hashGenesisBlock = uint256S("0x33f5d6569c918b7d136d595e0b01820e1f20485dad056f995bc462ef723e11f3");
+        uint256 hashMerkleRoot   = uint256S("0x528e736be74548fa04f726012dc8bbc2b160cbf1b483c48088ca952d56d76995");
 
         genesis = CreateTestGenesisBlock(1538956800, 862152659, 0x1d00ffff, 1, GetManagementPolicy());
         consensus.hashGenesisBlock = genesis.GetHash();
