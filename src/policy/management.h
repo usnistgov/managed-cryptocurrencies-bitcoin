@@ -35,7 +35,7 @@ public:
         bool fRoleAActive               = true;
         bool fRoleDActive               = true;
         bool fRoleLCanMoveCoin          = true;
-        CAmount nRoleCCoinCreationLimit = 0;
+        CAmount nRoleCCoinCreationLimit = 1000 * COIN;
         bool fBlockRewardAuto           = true;
         CAmount nCurBlockReward         = 50 * COIN;
         CAmount nMinBlockReward         = 0;
@@ -52,6 +52,10 @@ public:
 
     CAmount& GetCurrentReward() {
         return activePolicy.nCurBlockReward;
+    }
+
+    CAmount& GetCoinCreationLimit() {
+        return activePolicy.nRoleCCoinCreationLimit;
     }
 
     CRoleChangeMode GetActiveRoles() const {

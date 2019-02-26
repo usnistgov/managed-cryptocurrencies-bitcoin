@@ -3069,6 +3069,25 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
             return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(),
                                  strprintf("Transaction check failed (tx hash %s) %s", tx->GetHash().ToString(), state.GetDebugMessage()));
 
+    // Check coin creation against policy
+    CAmount nValueOut = 0;
+    for (const auto& tx : block.vtx) {
+        if (tx->nVersion == CTransaction::VERSION_COIN_CREATION ||
+                tx->nVersion == CTransaction::VERSION_COIN_CREATION_FEE) {
+            for (size_t idx = 0; idx < tx->vout.size(); ++idx)
+            {
+                if (tx->vout[idx].nTxType == CTxOut::COIN_TRANSFER) {
+                    nValueOut += tx->vout[idx].nValue;
+                }
+            }
+        }
+    }
+
+    CManagementPolicy managementPolicy;
+    if (nValueOut > managementPolicy.GetCoinCreationLimit()) {
+        return state.DoS(100, false, REJECT_INVALID, "bad-blk-too-many-coins", false, "too many coins created");
+    }
+
     unsigned int nSigOps = 0;
     for (const auto& tx : block.vtx)
     {

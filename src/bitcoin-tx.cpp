@@ -309,6 +309,21 @@ static void AddNewTxOut(CMutableTransaction& tx, const std::string& str1stInput,
         case CTransaction::VERSION_POLICY_CHANGE_FEE:
             // TODO
             break;
+        case CTransaction::VERSION_COIN_CREATION:
+        case CTransaction::VERSION_COIN_CREATION_FEE:
+            if (tx.vout.size() == 0) {
+                // First output is the role repeat
+                tx.vout.push_back(
+                    CTxOut(ExtractAndValidateRoles(str1stInput), scriptPubKey)
+                );
+            }
+            else {
+                // Other outputs are coin transfers
+                tx.vout.push_back(
+                    CTxOut(ExtractAndValidateValue(str1stInput), scriptPubKey)
+                );
+            }
+            break;
         default:
             throw std::ios_base::failure(std::string(__func__) + ":" + std::to_string(__LINE__) + "> Unknown transaction version: " + std::to_string(tx.nVersion)); // FIXME
     }

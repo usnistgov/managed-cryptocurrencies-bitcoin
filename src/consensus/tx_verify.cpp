@@ -221,10 +221,31 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
         case CTransaction::VERSION_POLICY_CHANGE:
             // TODO
             break;
+        case CTransaction::VERSION_COIN_CREATION:
+            CAmount nValueOut = 0;
+            CManagementPolicy managementPolicy;
+
+            for (size_t idx = 0; idx < tx.vout.size(); ++idx)
+            {
+                if (tx.vout[idx].nTxType == CTxOut::COIN_TRANSFER) {
+                    CAmount nValue = tx.vout[idx].nValue;
+                    if (nValue < 0)
+                        return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-negative");
+                    if (nValue > MAX_MONEY)
+                        return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-toolarge");
+                    nValueOut += nValue;
+                    if (!MoneyRange(nValueOut) || nValueOut > managementPolicy.GetCoinCreationLimit())
+                        return state.DoS(100, false, REJECT_INVALID, "bad-txns-txouttotal-toolarge");
+                }
+            }
+            break;
         case CTransaction::VERSION_ROLE_CHANGE_FEE:
             // TODO
             break;
         case CTransaction::VERSION_POLICY_CHANGE_FEE:
+            // TODO
+            break;
+        case CTransaction::VERSION_COIN_CREATION_FEE:
             // TODO
             break;
         default:
@@ -368,9 +389,18 @@ bool isAuthorized(const CTransaction& tx, const CRoleChangeMode& inRole, const C
         case CTransaction::VERSION_POLICY_CHANGE_FEE:
             // TODO
             break;
+        case CTransaction::VERSION_COIN_CREATION:
+        case CTransaction::VERSION_COIN_CREATION_FEE:
+            // Only a C or a M user can perform coin creation
+            if (inRole.fRoleC || inRole.fRoleM) {
+                return true;
+            }
+            break;
         default:
-            throw std::ios_base::failure(std::string(__func__) + ":" + std::to_string(__LINE__) + "> Unknown transaction version: " + std::to_string(tx.nVersion)); // FIXME
-            return false;
+            throw std::ios_base::failure(
+                std::string(__func__) + ":" + std::to_string(__LINE__)+ "> Unknown transaction version: "
+                + std::to_string(tx.nVersion)
+            ); // FIXME
     }
 
     // By default
@@ -443,6 +473,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
             case CTransaction::VERSION_COIN_TRANSFER:
             case CTransaction::VERSION_ROLE_CHANGE_FEE:
             case CTransaction::VERSION_POLICY_CHANGE_FEE:
+            case CTransaction::VERSION_COIN_CREATION_FEE:
                 assert(tx.vout.size() > 1);
                 assert(ExtractDestination(tx.vout[1].scriptPubKey, dest2));
                 if (dest1 != dest2)
@@ -458,6 +489,8 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
         {
             case CTransaction::VERSION_COIN_TRANSFER:
             case CTransaction::VERSION_COINBASE_TRANSFER:
+            case CTransaction::VERSION_COIN_CREATION:
+            case CTransaction::VERSION_COIN_CREATION_FEE:
                 txType = CTxOut::COIN_TRANSFER;
                 break;
             case CTransaction::VERSION_ROLE_CHANGE:
@@ -488,6 +521,8 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
             case CTransaction::VERSION_COIN_TRANSFER:
             case CTransaction::VERSION_POLICY_CHANGE:
             case CTransaction::VERSION_POLICY_CHANGE_FEE:
+            case CTransaction::VERSION_COIN_CREATION:
+            case CTransaction::VERSION_COIN_CREATION_FEE:
                 // If the "role repeat" is the same as the current role, we're good
                 if (tx.vout[0].nRole == credentials.out.nRole)
                     break;
@@ -500,6 +535,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
         }
 
         // Check that the following vouts don't use the vin address
+        // FIXME might be possible for coin creation - check with team
         for (size_t i = tx.GetPayloadOffset(); i < tx.vout.size(); ++i) {
             assert(ExtractDestination(tx.vout[i].scriptPubKey, dest2));
             if (dest1 == dest2)
@@ -512,6 +548,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
     {
         case CTransaction::VERSION_ROLE_CHANGE:
         case CTransaction::VERSION_POLICY_CHANGE:
+        case CTransaction::VERSION_COIN_CREATION:
             // Free role/policy change transactions don't require a fee
             // FIXME Make sure that the current policy allows for these transaction, but perhaps elsewhere
             txfee = 0;
@@ -520,6 +557,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
         case CTransaction::VERSION_COIN_TRANSFER:
         case CTransaction::VERSION_ROLE_CHANGE_FEE:
         case CTransaction::VERSION_POLICY_CHANGE_FEE:
+        case CTransaction::VERSION_COIN_CREATION_FEE:
         {
             CAmount nValueIn = 0;
 
