@@ -222,7 +222,22 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
             // TODO
             break;
         case CTransaction::VERSION_COIN_CREATION:
-            // TODO
+            CAmount nValueOut = 0;
+            CManagementPolicy managementPolicy;
+
+            for (size_t idx = 0; idx < tx.vout.size(); ++idx)
+            {
+                if (tx.vout[idx].nTxType == CTxOut::COIN_TRANSFER) {
+                    CAmount nValue = tx.vout[idx].nValue;
+                    if (nValue < 0)
+                        return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-negative");
+                    if (nValue > MAX_MONEY)
+                        return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-toolarge");
+                    nValueOut += nValue;
+                    if (!MoneyRange(nValueOut) || nValueOut > managementPolicy.GetCoinCreationLimit())
+                        return state.DoS(100, false, REJECT_INVALID, "bad-txns-txouttotal-toolarge");
+                }
+            }
             break;
         case CTransaction::VERSION_ROLE_CHANGE_FEE:
             // TODO
