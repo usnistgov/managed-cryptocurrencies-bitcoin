@@ -827,6 +827,7 @@ void PeerLogicValidation::BlockConnected(const std::shared_ptr<const CBlock>& pb
                 // FIXME vout is offset by 1 for fees
                 break;
             case CTransaction::VERSION_ROLE_CHANGE:
+            {
                 // FIXME check if factorization is possible
                 // Genesis block processing is slightly different
                 if(pblock->GetHash() == consensusParams.hashGenesisBlock) {
@@ -852,7 +853,7 @@ void PeerLogicValidation::BlockConnected(const std::shared_ptr<const CBlock>& pb
                 if (!ExtractDestination(tx.vout[0].scriptPubKey, parentAddress)) break;
 
                 // Browse vouts from index 1 (index 0 is manager roles being forwarded)
-                for(unsigned int i = 1; i < tx.vout.size(); ++i) {
+                for(size_t i = 1; i < tx.vout.size(); ++i) {
                     const CTxOut& vout = tx.vout[i];
                     CTxDestination accountAddress;
 
@@ -866,6 +867,7 @@ void PeerLogicValidation::BlockConnected(const std::shared_ptr<const CBlock>& pb
                     accountDB.UpdateAccount(accountAddress, accountData);
                 }
                 break;
+            }
             // Account table does not need any update for these transactions
             case CTransaction::VERSION_POLICY_CHANGE_FEE:
             case CTransaction::VERSION_POLICY_CHANGE:

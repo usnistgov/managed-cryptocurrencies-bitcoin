@@ -632,20 +632,13 @@ UniValue getrolehierarchy(const JSONRPCRequest& request)
             "\nExtract the role hierarchy saved in the node."
         );
 
-    try
-    {
-        std::cout << "getrolehierarchy ....." << std::endl;
-        CManagedAccountDB accountDB;
-        std::cout << "Account DB OK" << std::endl;
-        CAccountDataVisualization dataVisualization(accountDB);
-        std::cout << "Dataviz Init OK" << std::endl;
+    std::cout << "getrolehierarchy ....." << std::endl;
+    CManagedAccountDB accountDB;
+    std::cout << "Account DB OK" << std::endl;
+    CAccountDataVisualization dataVisualization(accountDB);
+    std::cout << "Dataviz Init OK" << std::endl;
 
-        return dataVisualization.VisualizeGraph();
-    }
-    catch (int e)
-    {
-        std::cout << "An exception occurred. Exception Nr. " << e << std::endl;
-    }
+    return dataVisualization.VisualizeGraph();
 }
 
 static UniValue getinfo_deprecated(const JSONRPCRequest& request)

@@ -25,27 +25,27 @@ public:
         accountRoles = roles;
     }
 
-    CManagedAccountData(CRoleChangeMode roles, CTxDestination parent)
+    CManagedAccountData(const CRoleChangeMode& roles, const CTxDestination& parent)
     {
         accountRoles = roles;
         accountParent = parent;
     }
 
-    bool AddChild(CTxDestination child);
-    bool RemoveChild(CTxDestination child);
-    CRoleChangeMode GetRoles();
-    void SetRoles(CRoleChangeMode inputRoles);
-    CTxDestination GetParent();
-    std::vector <CTxDestination> GetChildren();
+    bool AddChild(const CTxDestination& child);
+    bool RemoveChild(const CTxDestination& child);
+    const CRoleChangeMode& GetRoles() const;
+    void SetRoles(const CRoleChangeMode& inputRoles);
+    const CTxDestination& GetParent() const;
+    const std::vector <CTxDestination>& GetChildren() const;
 
-    std::string ToString();
+    std::string ToString() const;
 
     // Serialization methods
     friend std::ostream & operator << (std::ostream &out, const CManagedAccountData &obj)
     {
         out << ValueFromRoles(obj.GetRoles()).get_str() << ";" << EncodeDestination(obj.GetParent()) << ";";
 
-        for(int i=0; i<obj.GetChildren().size(); i++) {
+        for(size_t i=0; i<obj.GetChildren().size(); i++) {
             out << EncodeDestination(obj.GetChildren().at(i));
 
             if(i != obj.GetChildren().size()-1) {
@@ -77,7 +77,7 @@ public:
             std::vector<std::string> accountChildrenRaw;
             boost::split(accountChildrenRaw, accountData.at(2), [](char c){return c == '|';});
 
-            for(int i=0; i<accountChildrenRaw.size(); i++) {
+            for(size_t i=0; i<accountChildrenRaw.size(); i++) {
                 obj.AddChild(DecodeDestination(accountChildrenRaw.at(i)));
             }
         }
