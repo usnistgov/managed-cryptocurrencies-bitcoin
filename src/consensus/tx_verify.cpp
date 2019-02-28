@@ -387,14 +387,15 @@ bool isAuthorized(const CTransaction& tx, const CRoleChangeMode& inRole, const C
             return true;
         case CTransaction::VERSION_POLICY_CHANGE:
         case CTransaction::VERSION_POLICY_CHANGE_FEE:
-            // TODO
+            // Only a M user can change policy
+            if (inRole.fRoleM)
+                return true;
             break;
         case CTransaction::VERSION_COIN_CREATION:
         case CTransaction::VERSION_COIN_CREATION_FEE:
-            // Only a C or a M user can perform coin creation
-            if (inRole.fRoleC || inRole.fRoleM) {
+            // Only a C user can create coin
+            if (inRole.fRoleC)
                 return true;
-            }
             break;
         default:
             throw std::ios_base::failure(
@@ -449,6 +450,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
         }
 
         // Ensure that all vins are using the same address, so that one cannot use its privileges with another address
+        // FIXME: Handle the special case of law enforcement fund transfer and role changes
         // Also ensure that all vins except the first are coin transfer utxo
         assert(ExtractDestination(credentials.out.scriptPubKey, dest1));
         for (size_t i = 1; i < tx.vin.size(); ++i) {
