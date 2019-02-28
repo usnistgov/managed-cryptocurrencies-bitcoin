@@ -822,49 +822,38 @@ void PeerLogicValidation::BlockConnected(const std::shared_ptr<const CBlock>& pb
     for (const CTransactionRef& ptx : pblock->vtx) {
         const CTransaction& tx = *ptx;
 
+        // Update the account hierarchy tree
         switch(tx.nVersion) {
             case CTransaction::VERSION_ROLE_CHANGE_FEE:
-                // FIXME vout is offset by 1 for fees
-                break;
             case CTransaction::VERSION_ROLE_CHANGE:
             {
-                // FIXME check if factorization is possible
-                // Genesis block processing is slightly different
-                if(pblock->GetHash() == consensusParams.hashGenesisBlock) {
-                    // Browse all vouts
-                    for(unsigned int i = 0; i < tx.vout.size(); ++i) {
+                CTxDestination accountAddress, parentAddress;
+                CManagedAccountDB accountDB;
+
+                // Process the genesis block
+                if (pblock->GetHash() == consensusParams.hashGenesisBlock) {
+                    for (size_t i = tx.GetPayloadOffset(); i < tx.vout.size(); ++i) {
                         const CTxOut& vout = tx.vout[i];
-                        CTxDestination accountAddress;
-
-                        if(!ExtractDestination(vout.scriptPubKey, accountAddress)) {
-                            break;
+                        if (ExtractDestination(vout.scriptPubKey, accountAddress)) {
+                            CManagedAccountData accountData(vout.nRole);
+                            accountDB.UpdateAccount(accountAddress, accountData);
                         }
-
-                        CManagedAccountData accountData(vout.nRole);
-                        CManagedAccountDB accountDB;
-
-                        accountDB.UpdateAccount(accountAddress, accountData);
                     }
-                    break;
-                }
-
-                // Default block processing
-                CTxDestination parentAddress;
-                if (!ExtractDestination(tx.vout[0].scriptPubKey, parentAddress)) break;
-
-                // Browse vouts from index 1 (index 0 is manager roles being forwarded)
-                for(size_t i = 1; i < tx.vout.size(); ++i) {
-                    const CTxOut& vout = tx.vout[i];
-                    CTxDestination accountAddress;
-
-                    if(!ExtractDestination(vout.scriptPubKey, accountAddress)) {
+                } else {
+                    // Default block processing
+                    if (!ExtractDestination(tx.vout[0].scriptPubKey, parentAddress))
                         break;
+                    // Update the "manager's" roles, in case it dropped them
+                    CManagedAccountData parentData(tx.vout[0].nRole);
+                    accountDB.UpdateAccount(parentAddress, parentData);
+                    // Update the hierarchy for the accounts modified by this transaction
+                    for (size_t i = tx.GetPayloadOffset(); i < tx.vout.size(); ++i) {
+                        const CTxOut& vout = tx.vout[i];
+                        if (ExtractDestination(vout.scriptPubKey, accountAddress)) {
+                            CManagedAccountData accountData(vout.nRole, parentAddress);
+                            accountDB.UpdateAccount(accountAddress, accountData);
+                        }
                     }
-
-                    CManagedAccountData accountData (vout.nRole, parentAddress);
-                    CManagedAccountDB accountDB;
-
-                    accountDB.UpdateAccount(accountAddress, accountData);
                 }
                 break;
             }
