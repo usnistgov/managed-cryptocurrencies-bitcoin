@@ -353,6 +353,8 @@ public:
     static const int32_t VERSION_ROLE_CHANGE_FEE   = 1949;
     static const int32_t VERSION_POLICY_CHANGE_FEE = 1950;
     static const int32_t VERSION_COIN_CREATION_FEE = 1951;
+    static const int32_t VERSION_ROLE_CREATE       = 1952;
+    static const int32_t VERSION_ROLE_CREATE_FEE   = 1953;
 
     // The local variables are made const to prevent unintended modification
     // without updating the cached hash value. However, CTransaction is not
@@ -404,8 +406,9 @@ public:
     // GetValueIn() is a method on CCoinsViewCache, because
     // inputs must be known to compute value in.
 
-    // Calculate where the "payload" (first vout that's not a role repeat or a change address) starts in the vout array
-    size_t GetPayloadOffset() const {
+    // Calculate where the extra outputs (first vout that's not a role repeat 
+    // or a change address) start in the vout array
+    size_t GetExtraOutputOffset() const {
         switch (nVersion)
         {
             case VERSION_COINBASE_TRANSFER:
@@ -414,10 +417,19 @@ public:
             case VERSION_ROLE_CHANGE_FEE:
             case VERSION_POLICY_CHANGE_FEE:
             case VERSION_COIN_CREATION_FEE:
+            case VERSION_ROLE_CREATE_FEE:
                 return 2;
             default:
                 return 1;
         }
+    }
+
+    // Calculate where the extra inputs (first vin that's not credentials or a 
+    // fee address) start in the vin array
+    size_t GetExtraInputOffset() const {
+        // The transactions inputs/outputs are symmetrial at this point, so we 
+        // can use the same function to calculate the offset
+        return GetExtraOutputOffset();
     }
 
     /**
@@ -548,7 +560,7 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
 
     if (tx.vout.size() > 0) {
         // For all transaction types except coinbase, the first vout is always a role change
-        // so that a user is giving himself his own role (to prevent replay attacks).
+        // so that a user is repeating its own role (to prevent replay attacks).
         if (tx.nVersion == CTransaction::VERSION_COINBASE_TRANSFER) {
             for (size_t i = 0; i < tx.vout.size(); ++i)
                 tx.vout[i].nTxType = CTxOut::COIN_TRANSFER;
@@ -563,6 +575,7 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
                     case CTransaction::VERSION_COIN_TRANSFER:
                     case CTransaction::VERSION_ROLE_CHANGE_FEE:
                     case CTransaction::VERSION_POLICY_CHANGE_FEE:
+                    case CTransaction::VERSION_ROLE_CREATE_FEE:
                         tx.vout[i++].nTxType = CTxOut::COIN_TRANSFER;
                         break;
                 }
@@ -572,6 +585,8 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
             switch (tx.nVersion) {
                 case CTransaction::VERSION_ROLE_CHANGE:
                 case CTransaction::VERSION_ROLE_CHANGE_FEE:
+                case CTransaction::VERSION_ROLE_CREATE:
+                case CTransaction::VERSION_ROLE_CREATE_FEE:
                     txtype = CTxOut::ROLE_CHANGE;
                     break;
                 case CTransaction::VERSION_POLICY_CHANGE:

@@ -732,11 +732,17 @@ static bool AcceptToMemoryPoolWorker(const CChainParams& chainparams, CTxMemPool
             return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool min fee not met", false, strprintf("%d < %d", nFees, mempoolRejectFee));
         }
 
-        if (tx.nVersion != CTransaction::VERSION_ROLE_CHANGE && tx.nVersion != CTransaction::VERSION_POLICY_CHANGE) {
-            // No transactions are allowed below minRelayTxFee except from disconnected blocks
-            if (!bypass_limits && nModifiedFees < ::minRelayTxFee.GetFee(nSize)) {
-                return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "min relay fee not met");
-            }
+        switch (tx.nVersion)
+        {
+            case CTransaction::VERSION_ROLE_CREATE:
+            case CTransaction::VERSION_ROLE_CHANGE:
+            case CTransaction::VERSION_POLICY_CHANGE:
+                break;
+            default:
+                // No transactions are allowed below minRelayTxFee except from disconnected blocks
+                if (!bypass_limits && nModifiedFees < ::minRelayTxFee.GetFee(nSize)) {
+                    return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "min relay fee not met");
+                }
         }
 
         if (nAbsurdFee && nFees > nAbsurdFee)
@@ -1321,6 +1327,8 @@ void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txund
     AddCoins(inputs, tx, nHeight);
 }
 
+
+/* Disable this since we are now using unsigned vin to spend old roles
 void FlushOldRoles(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight)
 {
     // mark inputs spent
@@ -1328,7 +1336,7 @@ void FlushOldRoles(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txu
         switch (tx.nVersion) {
             case CTransaction::VERSION_ROLE_CHANGE:
             case CTransaction::VERSION_ROLE_CHANGE_FEE:
-                for (size_t i = tx.GetPayloadOffset(); i < tx.vout.size(); ++i) {
+                for (size_t i = tx.GetExtraOutputOffset(); i < tx.vout.size(); ++i) {
                     assert(tx.vout[i].nTxType == CTxOut::ROLE_CHANGE);
 
                     Coin coin = Coin(tx.vout[i], nHeight, tx.IsCoinBase());
@@ -1337,6 +1345,7 @@ void FlushOldRoles(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txu
         }
     }
 }
+*/
 
 void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight)
 {
@@ -1416,7 +1425,19 @@ bool CheckInputs(const CTransaction& tx, CValidationState &state, const CCoinsVi
                 return true;
             }
 
-            for (unsigned int i = 0; i < tx.vin.size(); i++) {
+            // For VERSION_ROLE_CHANGE and VERSION_ROLE_CHANGE_FEE, only check the first / first two vin.
+            // The following vin are not signed and provided to remove them from the utxo database.
+            size_t vinSize;
+            switch (tx.nVersion)
+            {
+                case CTransaction::VERSION_ROLE_CHANGE:
+                case CTransaction::VERSION_ROLE_CHANGE_FEE:
+                    vinSize = tx.GetExtraInputOffset();
+                    break;
+                default:
+                    vinSize = tx.vin.size();
+            }
+            for (unsigned int i = 0; i < vinSize; i++) {
                 const COutPoint &prevout = tx.vin[i].prevout;
                 const Coin& coin = inputs.AccessCoin(prevout);
                 assert(!coin.IsSpent());
@@ -1997,8 +2018,10 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
         }
         UpdateCoins(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight);
 
+/* Disable this since we are now using unsigned vin to spend old roles
         if(!fJustCheck)
             FlushOldRoles(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight);
+*/
     }
     int64_t nTime3 = GetTimeMicros(); nTimeConnect += nTime3 - nTime2;
     LogPrint(BCLog::BENCH, "      - Connect %u transactions: %.2fms (%.3fms/tx, %.3fms/txin) [%.2fs (%.2fms/blk)]\n", (unsigned)block.vtx.size(), MILLI * (nTime3 - nTime2), MILLI * (nTime3 - nTime2) / block.vtx.size(), nInputs <= 1 ? 0 : MILLI * (nTime3 - nTime2) / (nInputs-1), nTimeConnect * MICRO, nTimeConnect * MILLI / nBlocksTotal);

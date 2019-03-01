@@ -69,6 +69,7 @@ UniValue ValueFromTxOut(const CTxOut& txout, int32_t txversion, unsigned int ind
             }
             break;
         case CTransaction::VERSION_ROLE_CHANGE:
+        case CTransaction::VERSION_ROLE_CREATE:
             // All vousts are role changes (the first one is a role repeat)
             assert(txout.nTxType == CTxOut::ROLE_CHANGE);
             out.pushKV("roles", ValueFromRoles(txout.nRole));
@@ -86,6 +87,7 @@ UniValue ValueFromTxOut(const CTxOut& txout, int32_t txversion, unsigned int ind
             }
             break;
         case CTransaction::VERSION_ROLE_CHANGE_FEE:
+        case CTransaction::VERSION_ROLE_CREATE_FEE:
             // The second vout is a coin transfer (to allow a fee)
             if (index == 1) {
                 assert(txout.nTxType == CTxOut::COIN_TRANSFER);

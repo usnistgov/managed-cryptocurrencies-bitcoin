@@ -215,13 +215,8 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
             }
             break;
         }
-        case CTransaction::VERSION_ROLE_CHANGE:
-            // TODO
-            break;
-        case CTransaction::VERSION_POLICY_CHANGE:
-            // TODO
-            break;
         case CTransaction::VERSION_COIN_CREATION:
+        {
             CAmount nValueOut = 0;
             CManagementPolicy managementPolicy;
 
@@ -239,12 +234,13 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
                 }
             }
             break;
-        case CTransaction::VERSION_ROLE_CHANGE_FEE:
-            // TODO
-            break;
+        }
+        case CTransaction::VERSION_POLICY_CHANGE:
         case CTransaction::VERSION_POLICY_CHANGE_FEE:
-            // TODO
-            break;
+        case CTransaction::VERSION_ROLE_CHANGE:
+        case CTransaction::VERSION_ROLE_CHANGE_FEE:
+        case CTransaction::VERSION_ROLE_CREATE:
+        case CTransaction::VERSION_ROLE_CREATE_FEE:
         case CTransaction::VERSION_COIN_CREATION_FEE:
             // TODO
             break;
@@ -365,23 +361,44 @@ bool isAuthorized(const CTransaction& tx, const CRoleChangeMode& inRole, const C
         case CTransaction::VERSION_ROLE_CHANGE:
         case CTransaction::VERSION_ROLE_CHANGE_FEE:
             // Check if all "payload" vouts are valid and authorized
-            for (size_t i = tx.GetPayloadOffset(); i < tx.vout.size(); ++i) {
+            for (size_t i = tx.GetExtraOutputOffset(); i < tx.vout.size(); ++i) {
                 CRoleChangeMode roleDelta = tx.vout[i].nRole;
                 // Check that the new role set is valid
                 if (!isValidRoleOut(roleDelta))
                     return false;
-                // Retrieve the previous role set and calculate which roles have been changed
-                std::cout << __func__ << ":" << __LINE__ << "> Fetching old roles for vout: " << tx.vout[i].ToString() << std::endl; // FIXME 
-                auto oldRoles = inputs.FetchOldRole(Coin(tx.vout[i], 1, false));
-                if (oldRoles.size() > 0) {
-                    std::cout << __func__ << ":" << __LINE__ << "> old roles: " << oldRoles.front().out.nRole.ToString() << std::endl; // FIXME 
-                    std::cout << __func__ << ":" << __LINE__ << "> new roles: " << roleDelta.ToString() << std::endl; // FIXME 
-                    roleDelta ^= oldRoles.front().out.nRole;
-                    std::cout << __func__ << ":" << __LINE__ << "> change...: " << roleDelta.ToString() << std::endl; // FIXME 
-                }
-                else std::cout << __func__ << ":" << __LINE__ << "> Cannot fetch old roles" << std::endl; // FIXME 
+                // Check the previous role in the corresponding vin prouvt and calculate which roles have been changed
+                std::cout << __func__ << ":" << __LINE__ << "> Checking old roles for vout: " << tx.vout[i].ToString() << std::endl; // FIXME 
+                const CTxOut& prevout = inputs.AccessCoin(tx.vin[i].prevout).out;
+                if (prevout.nTxType == CTxOut::ROLE_CHANGE)
+                    return false;
+                // TODO: Also check that prevout's address is the same as the vout's address
+                std::cout << __func__ << ":" << __LINE__ << "> old roles: " << prevout.nRole.ToString() << std::endl; // FIXME 
+                std::cout << __func__ << ":" << __LINE__ << "> new roles: " << roleDelta.ToString() << std::endl; // FIXME 
+                roleDelta ^= prevout.nRole;
+                std::cout << __func__ << ":" << __LINE__ << "> change...: " << roleDelta.ToString() << std::endl; // FIXME 
                 // Check if the user changing the role set is authorized to do so
                 if (!isAuthorizedRCM(inRole, roleDelta))
+                    return false;
+            }
+            return true;
+        case CTransaction::VERSION_ROLE_CREATE:
+        case CTransaction::VERSION_ROLE_CREATE_FEE:
+            // Check if all "payload" vouts are valid and authorized
+            for (size_t i = tx.GetExtraOutputOffset(); i < tx.vout.size(); ++i) {
+                CRoleChangeMode newRole = tx.vout[i].nRole;
+                // Check that the new role set is valid
+                if (!isValidRoleOut(newRole))
+                    return false;
+                // Check that a previous role does not exist
+                std::cout << __func__ << ":" << __LINE__ << "> Check if account exists for vout: " << tx.vout[i].ToString(); // FIXME 
+                auto oldRoles = inputs.FetchOldRole(Coin(tx.vout[i], 1, false));
+                if (oldRoles.size() > 0) {
+                    std::cout << ">> Error: account already exists" << std::endl; // FIXME
+                    return false;
+                }
+                else std::cout << "> Ok: account is new" << std::endl; // FIXME
+                // Check if the user creating the account is authorized to do so
+                if (!isAuthorizedRCM(inRole, newRole))
                     return false;
             }
             return true;
@@ -399,7 +416,7 @@ bool isAuthorized(const CTransaction& tx, const CRoleChangeMode& inRole, const C
             break;
         default:
             throw std::ios_base::failure(
-                std::string(__func__) + ":" + std::to_string(__LINE__)+ "> Unknown transaction version: "
+                std::string(__func__) + ":" + std::to_string(__LINE__) + "> Unknown transaction version: "
                 + std::to_string(tx.nVersion)
             ); // FIXME
     }
@@ -449,18 +466,62 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
             return state.Invalid(false, REJECT_INVALID, "bad-txns-not-authorized");
         }
 
-        // Ensure that all vins are using the same address, so that one cannot use its privileges with another address
-        // FIXME: Handle the special case of law enforcement fund transfer and role changes
-        // Also ensure that all vins except the first are coin transfer utxo
+        // Ensure that all vins are using the same address, so that one cannot 
+        // use its privileges with another address. Also ensure that all vins 
+        // except the first are coin transfer utxo (fee addresses).
+        // Note that ROLE_CHANGEs are a special case and are handled separately,
+        // as their vins are the role changes that are going to be replaced by
+        // the new roles contained in the transaction's vouts.
         assert(ExtractDestination(credentials.out.scriptPubKey, dest1));
-        for (size_t i = 1; i < tx.vin.size(); ++i) {
-            const COutPoint &prevout = tx.vin[i].prevout;
-            const Coin& coin = inputs.AccessCoin(prevout);
-            if (coin.out.nTxType != CTxOut::COIN_TRANSFER)
-                return state.Invalid(false, REJECT_INVALID, "bad-txns-coin-transfer-expected");
-            assert(ExtractDestination(coin.out.scriptPubKey, dest2));
-            if (dest1 != dest2)
-                return state.Invalid(false, REJECT_INVALID, "bad-txns-address-mismatch");
+        switch (tx.nVersion)
+        {
+            case CTransaction::VERSION_ROLE_CHANGE_FEE:
+            {
+                // Check that the fee address (vin[1]) uses the same address as the credentials (vin[0])
+                const COutPoint &prevout = tx.vin[1].prevout;
+                const Coin& coin = inputs.AccessCoin(prevout);
+                if (coin.out.nTxType != CTxOut::COIN_TRANSFER)
+                    return state.Invalid(false, REJECT_INVALID, "bad-txns-coin-transfer-expected");
+                assert(ExtractDestination(coin.out.scriptPubKey, dest2));
+                if (dest1 != dest2)
+                    return state.Invalid(false, REJECT_INVALID, "bad-txns-address-mismatch");
+                // Fallthrough
+            }
+            case CTransaction::VERSION_ROLE_CHANGE:
+            {
+                // Check that the following vins don't use the credentials address
+                // and that each vin/vout pair (same index) use the same address.
+                if (tx.vin.size() != tx.vout.size())
+                    return state.Invalid(false, REJECT_INVALID, "bad-txns-io-mismatch");
+                CTxDestination dest3;
+                for (size_t i = tx.GetExtraInputOffset(); i < tx.vin.size(); ++i) {
+                    const COutPoint &prevout = tx.vin[i].prevout;
+                    const Coin& coin = inputs.AccessCoin(prevout);
+                    if (coin.out.nTxType != CTxOut::ROLE_CHANGE || tx.vout[i].nTxType != CTxOut::ROLE_CHANGE)
+                        return state.Invalid(false, REJECT_INVALID, "bad-txns-role-change-expected");
+                    assert(ExtractDestination(coin.out.scriptPubKey, dest2));
+                    if (dest1 == dest2)
+                        return state.Invalid(false, REJECT_INVALID, "bad-txns-address-reuse");
+                    assert(ExtractDestination(tx.vout[i].scriptPubKey, dest3));
+                    if (dest2 != dest3)
+                        return state.Invalid(false, REJECT_INVALID, "bad-txns-io-mismatch");
+                }
+                break;
+            }
+            default:
+            {
+                // For all other transactions, ensure that all vins use the same address
+                // and that vins besides the credentials are coin transfers
+                for (size_t i = 1; i < tx.vin.size(); ++i) {
+                   const COutPoint &prevout = tx.vin[i].prevout;
+                   const Coin& coin = inputs.AccessCoin(prevout);
+                   if (coin.out.nTxType != CTxOut::COIN_TRANSFER)
+                      return state.Invalid(false, REJECT_INVALID, "bad-txns-coin-transfer-expected");
+                    assert(ExtractDestination(coin.out.scriptPubKey, dest2));
+                    if (dest1 != dest2)
+                        return state.Invalid(false, REJECT_INVALID, "bad-txns-address-mismatch");
+                }
+            }
         }
 
         // Ensure that the first vout uses the vin address ("role repeat")
@@ -476,6 +537,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
             case CTransaction::VERSION_ROLE_CHANGE_FEE:
             case CTransaction::VERSION_POLICY_CHANGE_FEE:
             case CTransaction::VERSION_COIN_CREATION_FEE:
+            case CTransaction::VERSION_ROLE_CREATE_FEE:
                 assert(tx.vout.size() > 1);
                 assert(ExtractDestination(tx.vout[1].scriptPubKey, dest2));
                 if (dest1 != dest2)
@@ -497,6 +559,8 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
                 break;
             case CTransaction::VERSION_ROLE_CHANGE:
             case CTransaction::VERSION_ROLE_CHANGE_FEE:
+            case CTransaction::VERSION_ROLE_CREATE:
+            case CTransaction::VERSION_ROLE_CREATE_FEE:
                 txType = CTxOut::ROLE_CHANGE;
                 break;
             case CTransaction::VERSION_POLICY_CHANGE:
@@ -506,7 +570,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
             default:
                 return state.Invalid(false, REJECT_INVALID, "bad-txns-invalid-txversion");
         }
-        for (size_t i = tx.GetPayloadOffset(); i < tx.vout.size(); ++i) {
+        for (size_t i = tx.GetExtraOutputOffset(); i < tx.vout.size(); ++i) {
             if (tx.vout[i].nTxType != txType)
                 return state.Invalid(false, REJECT_INVALID, "bad-txns-invalid-vouttype");
         }
@@ -525,6 +589,8 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
             case CTransaction::VERSION_POLICY_CHANGE_FEE:
             case CTransaction::VERSION_COIN_CREATION:
             case CTransaction::VERSION_COIN_CREATION_FEE:
+            case CTransaction::VERSION_ROLE_CREATE:
+            case CTransaction::VERSION_ROLE_CREATE_FEE:
                 // If the "role repeat" is the same as the current role, we're good
                 if (tx.vout[0].nRole == credentials.out.nRole)
                     break;
@@ -538,7 +604,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
 
         // Check that the following vouts don't use the vin address
         // FIXME might be possible for coin creation - check with team
-        for (size_t i = tx.GetPayloadOffset(); i < tx.vout.size(); ++i) {
+        for (size_t i = tx.GetExtraOutputOffset(); i < tx.vout.size(); ++i) {
             assert(ExtractDestination(tx.vout[i].scriptPubKey, dest2));
             if (dest1 == dest2)
                 return state.Invalid(false, REJECT_INVALID, "bad-txns-address-reuse");
@@ -551,6 +617,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
         case CTransaction::VERSION_ROLE_CHANGE:
         case CTransaction::VERSION_POLICY_CHANGE:
         case CTransaction::VERSION_COIN_CREATION:
+        case CTransaction::VERSION_ROLE_CREATE:
             // Free role/policy change transactions don't require a fee
             // FIXME Make sure that the current policy allows for these transaction, but perhaps elsewhere
             txfee = 0;
@@ -560,6 +627,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
         case CTransaction::VERSION_ROLE_CHANGE_FEE:
         case CTransaction::VERSION_POLICY_CHANGE_FEE:
         case CTransaction::VERSION_COIN_CREATION_FEE:
+        case CTransaction::VERSION_ROLE_CREATE_FEE:
         {
             CAmount nValueIn = 0;
 

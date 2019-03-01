@@ -823,7 +823,7 @@ CTransactionRef CTxMemPool::get(const uint256& hash) const
     return i->GetSharedTx();
 }
 
-Coin CTxMemPool::getRoleByDest(const CTxDestination& dest) const
+Coin CTxMemPool::GetRoleByDest(const CTxDestination& dest) const
 {
     LOCK(cs);
     CTxDestination cur_dest;
@@ -845,6 +845,8 @@ Coin CTxMemPool::getRoleByDest(const CTxDestination& dest) const
             }
             case CTransaction::VERSION_ROLE_CHANGE:
             case CTransaction::VERSION_ROLE_CHANGE_FEE:
+            case CTransaction::VERSION_ROLE_CREATE:
+            case CTransaction::VERSION_ROLE_CREATE_FEE:
             {
                 // Check all vout
                 for (const CTxOut out : tx.vout) {
@@ -947,7 +949,7 @@ std::list<Coin> CCoinsViewMemPool::FetchOldRole(const Coin& coin) const {
     std::list<Coin> oldRoles;
     CTxDestination dest;
     assert(ExtractDestination(coin.out.scriptPubKey, dest));
-    Coin oldRole = mempool.getRoleByDest(dest);
+    Coin oldRole = mempool.GetRoleByDest(dest);
     if (!oldRole.IsSpent()) {
         oldRoles.push_front(oldRole);
         return oldRoles;

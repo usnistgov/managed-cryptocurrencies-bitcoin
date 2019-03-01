@@ -640,7 +640,7 @@ public:
     }
 
     CTransactionRef get(const uint256& hash) const;
-    Coin getRoleByDest(const CTxDestination& dest) const;
+    Coin GetRoleByDest(const CTxDestination& dest) const;
     TxMempoolInfo info(const uint256& hash) const;
     std::vector<TxMempoolInfo> infoAll() const;
 

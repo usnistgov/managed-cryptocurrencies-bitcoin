@@ -2176,6 +2176,8 @@ UniValue gettransaction(const JSONRPCRequest& request)
     switch (wtx.tx->nVersion) {
         case CTransaction::VERSION_ROLE_CHANGE:
         case CTransaction::VERSION_ROLE_CHANGE_FEE:
+        case CTransaction::VERSION_ROLE_CREATE:
+        case CTransaction::VERSION_ROLE_CREATE_FEE:
             for (const auto& tx_out : wtx.tx->vout)
                 if (tx_out.nTxType == CTxOut::ROLE_CHANGE)
                     entry.push_back(Pair("roles", ValueFromRoles(tx_out.nRole)));

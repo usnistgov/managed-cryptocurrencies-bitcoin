@@ -826,13 +826,15 @@ void PeerLogicValidation::BlockConnected(const std::shared_ptr<const CBlock>& pb
         switch(tx.nVersion) {
             case CTransaction::VERSION_ROLE_CHANGE_FEE:
             case CTransaction::VERSION_ROLE_CHANGE:
+            case CTransaction::VERSION_ROLE_CREATE_FEE:
+            case CTransaction::VERSION_ROLE_CREATE:
             {
                 CTxDestination accountAddress, parentAddress;
                 CManagedAccountDB accountDB;
 
                 // Process the genesis block
                 if (pblock->GetHash() == consensusParams.hashGenesisBlock) {
-                    for (size_t i = tx.GetPayloadOffset(); i < tx.vout.size(); ++i) {
+                    for (size_t i = tx.GetExtraOutputOffset(); i < tx.vout.size(); ++i) {
                         const CTxOut& vout = tx.vout[i];
                         if (ExtractDestination(vout.scriptPubKey, accountAddress)) {
                             CManagedAccountData accountData(vout.nRole);
@@ -847,7 +849,7 @@ void PeerLogicValidation::BlockConnected(const std::shared_ptr<const CBlock>& pb
                     CManagedAccountData parentData(tx.vout[0].nRole);
                     accountDB.UpdateAccount(parentAddress, parentData);
                     // Update the hierarchy for the accounts modified by this transaction
-                    for (size_t i = tx.GetPayloadOffset(); i < tx.vout.size(); ++i) {
+                    for (size_t i = tx.GetExtraOutputOffset(); i < tx.vout.size(); ++i) {
                         const CTxOut& vout = tx.vout[i];
                         if (ExtractDestination(vout.scriptPubKey, accountAddress)) {
                             CManagedAccountData accountData(vout.nRole, parentAddress);

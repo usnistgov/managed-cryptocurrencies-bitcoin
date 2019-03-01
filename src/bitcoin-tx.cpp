@@ -289,11 +289,13 @@ static void AddNewTxOut(CMutableTransaction& tx, const std::string& str1stInput,
             }
             break;
         case CTransaction::VERSION_ROLE_CHANGE:
+        case CTransaction::VERSION_ROLE_CREATE:
             // All outputs are role changes
             tx.vout.push_back(
                 CTxOut(ExtractAndValidateRoles(str1stInput), scriptPubKey));
             break;
         case CTransaction::VERSION_ROLE_CHANGE_FEE:
+        case CTransaction::VERSION_ROLE_CREATE_FEE:
             if (tx.vout.size() == 1) {
                 // The second output is a coin transfer (to allow for a fee)
                 tx.vout.push_back(

@@ -30,7 +30,7 @@ static CBlock CreateGenesisBlock(const CScript& managerOutputScript, uint32_t nT
     // New genesis transaction that grants all active roles to the manager's account
     pszTimestamp = "BBC News 08/Oct/2018 Final call to save the world from climate catastrophe";
     CMutableTransaction txMgr;
-    txMgr.nVersion = CTransaction::VERSION_ROLE_CHANGE;
+    txMgr.nVersion = CTransaction::VERSION_ROLE_CREATE;
     txMgr.vin.resize(1);
     txMgr.vout.resize(1);
     txMgr.vin[0].scriptSig = CScript() << 486604799 << CScriptNum(4) << std::vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
