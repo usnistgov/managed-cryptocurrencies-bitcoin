@@ -133,10 +133,10 @@ public:
         nDefaultPort = 8333;
         nPruneAfterHeight = 100000;
 
-        uint256 hashGenesisBlock = uint256S("0x929e5357d3307de155056c86427189511fc84f6b879462bb090041651d0b86c5");
-        uint256 hashMerkleRoot   = uint256S("0xb40d7beeb2b3883dc762561a9899b144ecfc130a2c5e6b0a0f4a3978c54bb068");
+        uint256 hashGenesisBlock = uint256S("0x000000005d3b6d8711b8d945665da8f5839e67b12ac09a8ed8218d47de858232");
+        uint256 hashMerkleRoot   = uint256S("0x1b15b766b4ad0ffc3260496db5ce40a4e0c0d473cf9bf9dfb4461dc39ef55505");
 
-        genesis = CreateGenesisBlock(1538956800, 327113298, 0x1d00ffff, 1, GetManagementPolicy());
+        genesis = CreateGenesisBlock(1538956802, 1198086479, 0x1d00ffff, 1, GetManagementPolicy());
         consensus.hashGenesisBlock = genesis.GetHash();
         if (consensus.hashGenesisBlock != hashGenesisBlock || genesis.hashMerkleRoot != hashMerkleRoot) {
             fprintf(stderr, "Mainnet genesis block needs to be re-mined:\n");
@@ -251,10 +251,10 @@ public:
         nDefaultPort = 18333;
         nPruneAfterHeight = 1000;
 
-        uint256 hashGenesisBlock = uint256S("0x33f5d6569c918b7d136d595e0b01820e1f20485dad056f995bc462ef723e11f3");
-        uint256 hashMerkleRoot   = uint256S("0x528e736be74548fa04f726012dc8bbc2b160cbf1b483c48088ca952d56d76995");
+        uint256 hashGenesisBlock = uint256S("0x00000000b552e3989e27efbd3692adbe20f619181256b0991294dc6e17bb8e7a");
+        uint256 hashMerkleRoot   = uint256S("0x3609470faad045f78a4018260c9f8d174bcb3459ac1c4b0995189ae625eb6dd3");
 
-        genesis = CreateTestGenesisBlock(1538956800, 862152659, 0x1d00ffff, 1, GetManagementPolicy());
+        genesis = CreateTestGenesisBlock(1538956800, 1076442165, 0x1d00ffff, 1, GetManagementPolicy());
         consensus.hashGenesisBlock = genesis.GetHash();
         if (consensus.hashGenesisBlock != hashGenesisBlock || genesis.hashMerkleRoot != hashMerkleRoot) {
             fprintf(stderr, "Testnet genesis block needs to be re-mined:\n");
@@ -350,10 +350,10 @@ public:
         nDefaultPort = 18444;
         nPruneAfterHeight = 1000;
 
-        uint256 hashGenesisBlock = uint256S("0x0e12243f61c1cdefd9328116a182636f76f94a56ede7e61adb3526bee4c9bde9");
-        uint256 hashMerkleRoot   = uint256S("0x528e736be74548fa04f726012dc8bbc2b160cbf1b483c48088ca952d56d76995");
+        uint256 hashGenesisBlock = uint256S("0x055a1da58dd25a55e461d233e4a737bdfc31da76dd05638f9ec9545c9dd19ebe");
+        uint256 hashMerkleRoot   = uint256S("0x3609470faad045f78a4018260c9f8d174bcb3459ac1c4b0995189ae625eb6dd3");
 
-        genesis = CreateTestGenesisBlock(1538956800, 2040109465, 0x207fffff, 1, GetManagementPolicy());
+        genesis = CreateTestGenesisBlock(1538956800, 2147483648, 0x207fffff, 1, GetManagementPolicy());
         consensus.hashGenesisBlock = genesis.GetHash();
         if (consensus.hashGenesisBlock != hashGenesisBlock || genesis.hashMerkleRoot != hashMerkleRoot) {
             fprintf(stderr, "Regtest genesis block needs to be re-mined:\n");
