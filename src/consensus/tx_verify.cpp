@@ -367,9 +367,10 @@ bool isAuthorized(const CTransaction& tx, const CRoleChangeMode& inRole, const C
                 if (!isValidRoleOut(roleDelta))
                     return false;
                 // Check the previous role in the corresponding vin prouvt and calculate which roles have been changed
-                std::cout << __func__ << ":" << __LINE__ << "> Checking old roles for vout: " << tx.vout[i].ToString() << std::endl; // FIXME 
                 const CTxOut& prevout = inputs.AccessCoin(tx.vin[i].prevout).out;
-                if (prevout.nTxType == CTxOut::ROLE_CHANGE)
+                std::cout << __func__ << ":" << __LINE__ << "> Role change old vout: " << prevout.ToString() << std::endl; // FIXME 
+                std::cout << __func__ << ":" << __LINE__ << "> Role change new vout: " << tx.vout[i].ToString() << std::endl; // FIXME 
+                if (prevout.nTxType != CTxOut::ROLE_CHANGE)
                     return false;
                 // TODO: Also check that prevout's address is the same as the vout's address
                 std::cout << __func__ << ":" << __LINE__ << "> old roles: " << prevout.nRole.ToString() << std::endl; // FIXME 

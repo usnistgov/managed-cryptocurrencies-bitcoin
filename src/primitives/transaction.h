@@ -340,7 +340,7 @@ public:
     // adapting relay policy by bumping MAX_STANDARD_VERSION, and then later date
     // bumping the default CURRENT_VERSION at which point both CURRENT_VERSION and
     // MAX_STANDARD_VERSION will be equal.
-    static const int32_t MAX_STANDARD_VERSION=1949;
+    static const int32_t MAX_STANDARD_VERSION=1953;
 
     // The transaction version determines the type of CTxOut output transaction
     // is stored in the "vout" array of the transaction. "vout" can contain only
