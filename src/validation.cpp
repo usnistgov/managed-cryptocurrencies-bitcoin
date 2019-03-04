@@ -1327,25 +1327,21 @@ void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txund
     AddCoins(inputs, tx, nHeight);
 }
 
-
-/* Disable this since we are now using unsigned vin to spend old roles
-void FlushOldRoles(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight)
+bool CheckIfAccountExists(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight)
 {
-    // mark inputs spent
-    if (!tx.IsCoinBase()) {
-        switch (tx.nVersion) {
-            case CTransaction::VERSION_ROLE_CHANGE:
-            case CTransaction::VERSION_ROLE_CHANGE_FEE:
-                for (size_t i = tx.GetExtraOutputOffset(); i < tx.vout.size(); ++i) {
-                    assert(tx.vout[i].nTxType == CTxOut::ROLE_CHANGE);
-
-                    Coin coin = Coin(tx.vout[i], nHeight, tx.IsCoinBase());
-                    inputs.EraseOldRole(coin);
-                }
-        }
+    switch (tx.nVersion)
+    {
+        case CTransaction::VERSION_ROLE_CREATE:
+        case CTransaction::VERSION_ROLE_CREATE_FEE:
+            for (size_t i = tx.GetExtraOutputOffset(); i < tx.vout.size(); ++i) {
+                assert(tx.vout[i].nTxType == CTxOut::ROLE_CHANGE);
+                Coin coin = Coin(tx.vout[i], nHeight, tx.IsCoinBase());
+                if(inputs.CheckIfAccountExists(coin))
+                    return true;
+            }
     }
+    return false;
 }
-*/
 
 void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight)
 {
@@ -2012,16 +2008,15 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
             control.Add(vChecks);
         }
 
+        // Check if the tx is an account creation, and if so if the account already exists
+        if (CheckIfAccountExists(tx, view, pindex->nHeight))
+            return state.DoS(100, error("ConnectBlock(): Account already exists"), "tx-dup-acct");
+
         CTxUndo undoDummy;
         if (i > 0) {
             blockundo.vtxundo.push_back(CTxUndo());
         }
         UpdateCoins(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight);
-
-/* Disable this since we are now using unsigned vin to spend old roles
-        if(!fJustCheck)
-            FlushOldRoles(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight);
-*/
     }
     int64_t nTime3 = GetTimeMicros(); nTimeConnect += nTime3 - nTime2;
     LogPrint(BCLog::BENCH, "      - Connect %u transactions: %.2fms (%.3fms/tx, %.3fms/txin) [%.2fs (%.2fms/blk)]\n", (unsigned)block.vtx.size(), MILLI * (nTime3 - nTime2), MILLI * (nTime3 - nTime2) / block.vtx.size(), nInputs <= 1 ? 0 : MILLI * (nTime3 - nTime2) / (nInputs-1), nTimeConnect * MICRO, nTimeConnect * MILLI / nBlocksTotal);

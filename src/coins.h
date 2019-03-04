@@ -190,11 +190,8 @@ public:
     //! Estimate database size (0 if not implemented)
     virtual size_t EstimateSize() const { return 0; }
 
-    //! Fetch old role UTXOs
-    virtual std::list<Coin> FetchOldRole(const Coin& coin) const { return std::list<Coin>(); }
-
-    //! Erase an old role UTXOs
-    virtual void EraseOldRole(Coin& coin) { return; }
+    //! Check if an account already exists
+    virtual bool CheckIfAccountExists(const Coin& coin) const { return false; }
 };
 
 
@@ -313,11 +310,8 @@ public:
     //! Check whether all prevouts of the transaction are present in the UTXO set represented by this view
     bool HaveInputs(const CTransaction& tx) const;
 
-    //! Fetch old role UTXOs
-    std::list<Coin> FetchOldRole(const Coin& coin) const override;
-
-    //! Erase old role UTXOs
-    void EraseOldRole(Coin& coin) override;
+    //! Check if an account already exists
+    bool CheckIfAccountExists(const Coin& coin) const override;
 
 private:
     CCoinsMap::iterator FetchCoin(const COutPoint &outpoint) const;

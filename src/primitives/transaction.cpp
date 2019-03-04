@@ -120,7 +120,7 @@ std::string CTxOut::ToString() const
         case COIN_TRANSFER:
             return strprintf("CTxOut(nValue=%d.%08d, dest=%s)", nValue / COIN, nValue % COIN, sdest);
         case ROLE_CHANGE:
-            return std::string("CTxOut(nRole=" + nRole.ToString() + ", dest=" + sdest);
+            return std::string("CTxOut(nRole=" + nRole.ToString() + ", dest=" + sdest + ")");
         case POLICY_CHANGE:
             return strprintf("CTxOut(fPrmnt=%s, nType=%u, nParam=%u, dest=%s)",
                     nPolicy.fPrmnt ? "permanent" : "provisional",

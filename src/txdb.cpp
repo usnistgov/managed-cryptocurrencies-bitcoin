@@ -188,19 +188,6 @@ CCoinsViewCursor *CCoinsViewDB::Cursor() const
     return i;
 }
 
-//! Fetch old role UTXOs
-std::list<Coin> CCoinsViewDB::FetchOldRole(const Coin& coin) const
-{
-    // TODO
-    return std::list<Coin>();
-}
-
-//! Erase old role UTXOs
-void CCoinsViewDB::EraseOldRole(Coin& coin)
-{
-    // TODO
-}
-
 bool CCoinsViewDBCursor::GetKey(COutPoint &key) const
 {
     // Return cached key

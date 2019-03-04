@@ -944,24 +944,16 @@ bool CCoinsViewMemPool::GetCoin(const COutPoint &outpoint, Coin &coin) const {
     return base->GetCoin(outpoint, coin);
 }
 
-//! Fetch old role UTXOs
-std::list<Coin> CCoinsViewMemPool::FetchOldRole(const Coin& coin) const {
-    std::list<Coin> oldRoles;
+//! Check if an account already exists
+bool CCoinsViewMemPool::CheckIfAccountExists(const Coin& coin) const {
     CTxDestination dest;
     assert(ExtractDestination(coin.out.scriptPubKey, dest));
     Coin oldRole = mempool.GetRoleByDest(dest);
-    if (!oldRole.IsSpent()) {
-        oldRoles.push_front(oldRole);
-        return oldRoles;
-    }
+    if (!oldRole.IsSpent())
+        return true;
     if (base)
-        return base->FetchOldRole(coin);
-    return oldRoles;
-}
-
-//! Erase old role UTXOs
-void CCoinsViewMemPool::EraseOldRole(Coin& coin) {
-    // TODO
+        return base->CheckIfAccountExists(coin);
+    return false;
 }
 
 size_t CTxMemPool::DynamicMemoryUsage() const {

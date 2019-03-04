@@ -708,10 +708,8 @@ public:
     CCoinsViewMemPool(CCoinsView* baseIn, const CTxMemPool& mempoolIn);
     bool GetCoin(const COutPoint &outpoint, Coin &coin) const override;
 
-    //! Fetch old role UTXOs
-    std::list<Coin> FetchOldRole(const Coin& coin) const override;
-    //! Erase old role UTXOs
-    void EraseOldRole(Coin& coin) override;
+    //! Check if an account already exists
+    bool CheckIfAccountExists(const Coin& coin) const override;
 };
 
 /**

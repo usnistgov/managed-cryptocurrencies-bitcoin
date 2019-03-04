@@ -345,11 +345,6 @@ bool isAuthorized(const CTransaction& tx, const CRoleChangeMode& inRole, const C
         return false;
     }
 
-    // Managers can perform anything (validity check made sure that they are registered and not disabled)
-    if (inRole.fRoleM) {
-        return true;
-    }
-
     switch(tx.nVersion)
     {
         case CTransaction::VERSION_COINBASE_TRANSFER:
@@ -366,7 +361,7 @@ bool isAuthorized(const CTransaction& tx, const CRoleChangeMode& inRole, const C
                 // Check that the new role set is valid
                 if (!isValidRoleOut(roleDelta))
                     return false;
-                // Check the previous role in the corresponding vin prouvt and calculate which roles have been changed
+                // Check the previous role in the corresponding vin prevout and calculate which roles have been changed
                 const CTxOut& prevout = inputs.AccessCoin(tx.vin[i].prevout).out;
                 std::cout << __func__ << ":" << __LINE__ << "> Role change old vout: " << prevout.ToString() << std::endl; // FIXME 
                 std::cout << __func__ << ":" << __LINE__ << "> Role change new vout: " << tx.vout[i].ToString() << std::endl; // FIXME 
@@ -390,14 +385,6 @@ bool isAuthorized(const CTransaction& tx, const CRoleChangeMode& inRole, const C
                 // Check that the new role set is valid
                 if (!isValidRoleOut(newRole))
                     return false;
-                // Check that a previous role does not exist
-                std::cout << __func__ << ":" << __LINE__ << "> Check if account exists for vout: " << tx.vout[i].ToString(); // FIXME 
-                auto oldRoles = inputs.FetchOldRole(Coin(tx.vout[i], 1, false));
-                if (oldRoles.size() > 0) {
-                    std::cout << ">> Error: account already exists" << std::endl; // FIXME
-                    return false;
-                }
-                else std::cout << "> Ok: account is new" << std::endl; // FIXME
                 // Check if the user creating the account is authorized to do so
                 if (!isAuthorizedRCM(inRole, newRole))
                     return false;
