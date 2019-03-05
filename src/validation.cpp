@@ -302,6 +302,22 @@ static void FindFilesToPrune(std::set<int>& setFilesToPrune, uint64_t nPruneAfte
 bool CheckInputs(const CTransaction& tx, CValidationState &state, const CCoinsViewCache &inputs, bool fScriptChecks, unsigned int flags, bool cacheSigStore, bool cacheFullScriptStore, PrecomputedTransactionData& txdata, std::vector<CScriptCheck> *pvChecks = nullptr);
 static FILE* OpenUndoFile(const CDiskBlockPos &pos, bool fReadOnly = false);
 
+bool CheckIfAccountExists(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight)
+{
+    switch (tx.nVersion)
+    {
+        case CTransaction::VERSION_ROLE_CREATE:
+        case CTransaction::VERSION_ROLE_CREATE_FEE:
+            for (size_t i = tx.GetExtraOutputOffset(); i < tx.vout.size(); ++i) {
+                assert(tx.vout[i].nTxType == CTxOut::ROLE_CHANGE);
+                Coin coin = Coin(tx.vout[i], nHeight, tx.IsCoinBase());
+                if(inputs.CheckIfAccountExists(coin))
+                    return true;
+            }
+    }
+    return false;
+}
+
 bool CheckFinalTx(const CTransaction &tx, int flags)
 {
     AssertLockHeld(cs_main);
@@ -602,8 +618,6 @@ static bool AcceptToMemoryPoolWorker(const CChainParams& chainparams, CTxMemPool
     CCoinsViewMemPool viewMemPool(pcoinsTip.get(), pool);
     view.SetBackend(viewMemPool);
 
-    Coin coin;
-
     std::set<uint256> setConflicts;
     for (const CTxIn &txin : tx.vin)
     {
@@ -685,6 +699,11 @@ static bool AcceptToMemoryPoolWorker(const CChainParams& chainparams, CTxMemPool
         if (!Consensus::CheckTxInputs(tx, state, view, GetSpendHeight(view), nFees)) {
             return error("%s: Consensus::CheckTxInputs: %s, %s", __func__, tx.GetHash().ToString(), FormatStateMessage(state));
         }
+
+        // Check if the tx is an account creation, and if so if the account already exists
+        CCoinsViewCache utxo(pcoinsTip.get());
+        if (CheckIfAccountExists(tx, utxo, chainActive.Height()+1))
+            return state.DoS(100, false, REJECT_INVALID, "tx-dup-acct", false, "Account already exists");
 
         // We have all inputs cached now, so switch back to dummy, so we don't need to keep lock on mempool
         view.SetBackend(dummy);
@@ -1325,22 +1344,6 @@ void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txund
     }
     // add outputs
     AddCoins(inputs, tx, nHeight);
-}
-
-bool CheckIfAccountExists(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight)
-{
-    switch (tx.nVersion)
-    {
-        case CTransaction::VERSION_ROLE_CREATE:
-        case CTransaction::VERSION_ROLE_CREATE_FEE:
-            for (size_t i = tx.GetExtraOutputOffset(); i < tx.vout.size(); ++i) {
-                assert(tx.vout[i].nTxType == CTxOut::ROLE_CHANGE);
-                Coin coin = Coin(tx.vout[i], nHeight, tx.IsCoinBase());
-                if(inputs.CheckIfAccountExists(coin))
-                    return true;
-            }
-    }
-    return false;
 }
 
 void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight)
@@ -2010,7 +2013,7 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
 
         // Check if the tx is an account creation, and if so if the account already exists
         if (CheckIfAccountExists(tx, view, pindex->nHeight))
-            return state.DoS(100, error("ConnectBlock(): Account already exists"), "tx-dup-acct");
+            return state.DoS(100, false, REJECT_INVALID, "tx-dup-acct", false, "Account already exists");
 
         CTxUndo undoDummy;
         if (i > 0) {

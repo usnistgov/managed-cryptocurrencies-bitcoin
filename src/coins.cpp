@@ -10,9 +10,6 @@
 #include <pubkey.h>
 #include <script/standard.h>
 
-#include <iostream> // FIXME
-#include <base58.h> // FIXME
-
 bool CCoinsView::GetCoin(const COutPoint &outpoint, Coin &coin) const { return false; }
 uint256 CCoinsView::GetBestBlock() const { return uint256(); }
 std::vector<uint256> CCoinsView::GetHeadBlocks() const { return std::vector<uint256>(); }

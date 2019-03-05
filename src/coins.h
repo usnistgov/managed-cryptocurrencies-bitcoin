@@ -83,7 +83,7 @@ public:
     }
 
     std::string ToString() const {
-        return std::string("Coin(" + out.ToString() + ", coinbase=" + std::to_string(fCoinBase) + ", height=" + std::to_string(nHeight));
+        return std::string("Coin(" + out.ToString() + ", coinbase=" + std::to_string(fCoinBase) + ", height=" + std::to_string(nHeight) + ")");
     }
 
     friend bool operator==(const Coin& a, const Coin& b)
