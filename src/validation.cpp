@@ -306,8 +306,8 @@ bool CheckIfAccountExists(const CTransaction& tx, CCoinsViewCache& inputs, int n
 {
     switch (tx.nVersion)
     {
-        case CTransaction::VERSION_ROLE_CREATE:
-        case CTransaction::VERSION_ROLE_CREATE_FEE:
+        case CTransaction::VERSION_ROLE_CREATION:
+        case CTransaction::VERSION_ROLE_CREATION_FEE:
             for (size_t i = tx.GetExtraOutputOffset(); i < tx.vout.size(); ++i) {
                 assert(tx.vout[i].nTxType == CTxOut::ROLE_CHANGE);
                 Coin coin = Coin(tx.vout[i], nHeight, tx.IsCoinBase());
@@ -753,7 +753,7 @@ static bool AcceptToMemoryPoolWorker(const CChainParams& chainparams, CTxMemPool
 
         switch (tx.nVersion)
         {
-            case CTransaction::VERSION_ROLE_CREATE:
+            case CTransaction::VERSION_ROLE_CREATION:
             case CTransaction::VERSION_ROLE_CHANGE:
             case CTransaction::VERSION_POLICY_CHANGE:
                 break;
@@ -1424,11 +1424,14 @@ bool CheckInputs(const CTransaction& tx, CValidationState &state, const CCoinsVi
                 return true;
             }
 
-            // For VERSION_ROLE_CHANGE and VERSION_ROLE_CHANGE_FEE, only check the first / first two vin.
-            // The following vin are not signed and provided to remove them from the utxo database.
+            // For VERSION_COIN_FORFEITURE, VERSION_ROLE_CHANGE and 
+            // VERSION_ROLE_CHANGE_FEE, only check the first / first two vin.
+            // The following vin are not signed and provided to remove them 
+            // from the utxo database.
             size_t vinSize;
             switch (tx.nVersion)
             {
+                case CTransaction::VERSION_COIN_FORFEITURE:
                 case CTransaction::VERSION_ROLE_CHANGE:
                 case CTransaction::VERSION_ROLE_CHANGE_FEE:
                     vinSize = tx.GetExtraInputOffset();

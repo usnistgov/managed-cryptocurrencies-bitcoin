@@ -277,31 +277,30 @@ static void AddNewTxOut(CMutableTransaction& tx, const std::string& str1stInput,
                 CTxOut(ExtractAndValidateValue(str1stInput), scriptPubKey));
             break;
         case CTransaction::VERSION_COIN_TRANSFER:
+        case CTransaction::VERSION_COIN_FORFEITURE:
             if (tx.vout.size() == 0) {
                 // First output is a role repeat (to prevent replay attacks)
                 tx.vout.push_back(
                     CTxOut(ExtractAndValidateRoles(str1stInput), scriptPubKey));
-            }
-            else {
+            } else {
                 // Following outputs are coin transfers
                 tx.vout.push_back(
                     CTxOut(ExtractAndValidateValue(str1stInput), scriptPubKey));
             }
             break;
         case CTransaction::VERSION_ROLE_CHANGE:
-        case CTransaction::VERSION_ROLE_CREATE:
+        case CTransaction::VERSION_ROLE_CREATION:
             // All outputs are role changes
             tx.vout.push_back(
                 CTxOut(ExtractAndValidateRoles(str1stInput), scriptPubKey));
             break;
         case CTransaction::VERSION_ROLE_CHANGE_FEE:
-        case CTransaction::VERSION_ROLE_CREATE_FEE:
+        case CTransaction::VERSION_ROLE_CREATION_FEE:
             if (tx.vout.size() == 1) {
                 // The second output is a coin transfer (to allow for a fee)
                 tx.vout.push_back(
                     CTxOut(ExtractAndValidateValue(str1stInput), scriptPubKey));
-            }
-            else {
+            } else {
                 // All other outputs are role changes (the first one is a role repeat)
                 tx.vout.push_back(
                     CTxOut(ExtractAndValidateRoles(str1stInput), scriptPubKey));
@@ -318,8 +317,7 @@ static void AddNewTxOut(CMutableTransaction& tx, const std::string& str1stInput,
                 tx.vout.push_back(
                     CTxOut(ExtractAndValidateRoles(str1stInput), scriptPubKey)
                 );
-            }
-            else {
+            } else {
                 // Other outputs are coin transfers
                 tx.vout.push_back(
                     CTxOut(ExtractAndValidateValue(str1stInput), scriptPubKey)

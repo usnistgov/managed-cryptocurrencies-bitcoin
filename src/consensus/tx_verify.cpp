@@ -192,6 +192,7 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
             break;
         }
         case CTransaction::VERSION_COIN_TRANSFER:
+        case CTransaction::VERSION_COIN_FORFEITURE:
         {
             // Check if the first vout is a "role repeat"
             if (tx.vout[0].nTxType != CTxOut::ROLE_CHANGE)
@@ -216,6 +217,7 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
             break;
         }
         case CTransaction::VERSION_COIN_CREATION:
+        case CTransaction::VERSION_COIN_CREATION_FEE:
         {
             CAmount nValueOut = 0;
             CManagementPolicy managementPolicy;
@@ -239,9 +241,8 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
         case CTransaction::VERSION_POLICY_CHANGE_FEE:
         case CTransaction::VERSION_ROLE_CHANGE:
         case CTransaction::VERSION_ROLE_CHANGE_FEE:
-        case CTransaction::VERSION_ROLE_CREATE:
-        case CTransaction::VERSION_ROLE_CREATE_FEE:
-        case CTransaction::VERSION_COIN_CREATION_FEE:
+        case CTransaction::VERSION_ROLE_CREATION:
+        case CTransaction::VERSION_ROLE_CREATION_FEE:
             // TODO
             break;
         default:
@@ -349,7 +350,7 @@ bool isAuthorized(const CTransaction& tx, const CRoleChangeMode& inRole, const C
     {
         case CTransaction::VERSION_COINBASE_TRANSFER:
             // We should not reach here
-            return true;
+            return false;
         case CTransaction::VERSION_COIN_TRANSFER:
             // The sender needs at least role R, but it's already checked for in isValidRoleIn
             return true;
@@ -363,22 +364,17 @@ bool isAuthorized(const CTransaction& tx, const CRoleChangeMode& inRole, const C
                     return false;
                 // Check the previous role in the corresponding vin prevout and calculate which roles have been changed
                 const CTxOut& prevout = inputs.AccessCoin(tx.vin[i].prevout).out;
-                std::cout << __func__ << ":" << __LINE__ << "> Role change old vout: " << prevout.ToString() << std::endl; // FIXME 
-                std::cout << __func__ << ":" << __LINE__ << "> Role change new vout: " << tx.vout[i].ToString() << std::endl; // FIXME 
                 if (prevout.nTxType != CTxOut::ROLE_CHANGE)
                     return false;
                 // TODO: Also check that prevout's address is the same as the vout's address
-                std::cout << __func__ << ":" << __LINE__ << "> old roles: " << prevout.nRole.ToString() << std::endl; // FIXME 
-                std::cout << __func__ << ":" << __LINE__ << "> new roles: " << roleDelta.ToString() << std::endl; // FIXME 
                 roleDelta ^= prevout.nRole;
-                std::cout << __func__ << ":" << __LINE__ << "> change...: " << roleDelta.ToString() << std::endl; // FIXME 
                 // Check if the user changing the role set is authorized to do so
                 if (!isAuthorizedRCM(inRole, roleDelta))
                     return false;
             }
             return true;
-        case CTransaction::VERSION_ROLE_CREATE:
-        case CTransaction::VERSION_ROLE_CREATE_FEE:
+        case CTransaction::VERSION_ROLE_CREATION:
+        case CTransaction::VERSION_ROLE_CREATION_FEE:
             // Check if all "payload" vouts are valid and authorized
             for (size_t i = tx.GetExtraOutputOffset(); i < tx.vout.size(); ++i) {
                 CRoleChangeMode newRole = tx.vout[i].nRole;
@@ -400,6 +396,11 @@ bool isAuthorized(const CTransaction& tx, const CRoleChangeMode& inRole, const C
         case CTransaction::VERSION_COIN_CREATION_FEE:
             // Only a C user can create coin
             if (inRole.fRoleC)
+                return true;
+            break;
+        case CTransaction::VERSION_COIN_FORFEITURE:
+            // Only a L user can seize coin
+            if (inRole.fRoleL)
                 return true;
             break;
         default:
@@ -525,7 +526,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
             case CTransaction::VERSION_ROLE_CHANGE_FEE:
             case CTransaction::VERSION_POLICY_CHANGE_FEE:
             case CTransaction::VERSION_COIN_CREATION_FEE:
-            case CTransaction::VERSION_ROLE_CREATE_FEE:
+            case CTransaction::VERSION_ROLE_CREATION_FEE:
                 assert(tx.vout.size() > 1);
                 assert(ExtractDestination(tx.vout[1].scriptPubKey, dest2));
                 if (dest1 != dest2)
@@ -535,20 +536,21 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
                 break;
         }
 
-        // Check the type of the following vouts
+        // Check the type of the following vouts (failsafe)
         CTxOut::TxType txType = CTxOut::UNINITIALIZED;
         switch (tx.nVersion)
         {
-            case CTransaction::VERSION_COIN_TRANSFER:
             case CTransaction::VERSION_COINBASE_TRANSFER:
+            case CTransaction::VERSION_COIN_TRANSFER:
+            case CTransaction::VERSION_COIN_FORFEITURE:
             case CTransaction::VERSION_COIN_CREATION:
             case CTransaction::VERSION_COIN_CREATION_FEE:
                 txType = CTxOut::COIN_TRANSFER;
                 break;
             case CTransaction::VERSION_ROLE_CHANGE:
             case CTransaction::VERSION_ROLE_CHANGE_FEE:
-            case CTransaction::VERSION_ROLE_CREATE:
-            case CTransaction::VERSION_ROLE_CREATE_FEE:
+            case CTransaction::VERSION_ROLE_CREATION:
+            case CTransaction::VERSION_ROLE_CREATION_FEE:
                 txType = CTxOut::ROLE_CHANGE;
                 break;
             case CTransaction::VERSION_POLICY_CHANGE:
@@ -573,12 +575,13 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
                     break;
                 // Fallthrough
             case CTransaction::VERSION_COIN_TRANSFER:
+            case CTransaction::VERSION_COIN_FORFEITURE:
             case CTransaction::VERSION_POLICY_CHANGE:
             case CTransaction::VERSION_POLICY_CHANGE_FEE:
             case CTransaction::VERSION_COIN_CREATION:
             case CTransaction::VERSION_COIN_CREATION_FEE:
-            case CTransaction::VERSION_ROLE_CREATE:
-            case CTransaction::VERSION_ROLE_CREATE_FEE:
+            case CTransaction::VERSION_ROLE_CREATION:
+            case CTransaction::VERSION_ROLE_CREATION_FEE:
                 // If the "role repeat" is the same as the current role, we're good
                 if (tx.vout[0].nRole == credentials.out.nRole)
                     break;
@@ -605,17 +608,18 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
         case CTransaction::VERSION_ROLE_CHANGE:
         case CTransaction::VERSION_POLICY_CHANGE:
         case CTransaction::VERSION_COIN_CREATION:
-        case CTransaction::VERSION_ROLE_CREATE:
+        case CTransaction::VERSION_ROLE_CREATION:
             // Free role/policy change transactions don't require a fee
             // FIXME Make sure that the current policy allows for these transaction, but perhaps elsewhere
             txfee = 0;
             break;
         case CTransaction::VERSION_COINBASE_TRANSFER:
         case CTransaction::VERSION_COIN_TRANSFER:
+        case CTransaction::VERSION_COIN_FORFEITURE:
         case CTransaction::VERSION_ROLE_CHANGE_FEE:
         case CTransaction::VERSION_POLICY_CHANGE_FEE:
         case CTransaction::VERSION_COIN_CREATION_FEE:
-        case CTransaction::VERSION_ROLE_CREATE_FEE:
+        case CTransaction::VERSION_ROLE_CREATION_FEE:
         {
             CAmount nValueIn = 0;
 

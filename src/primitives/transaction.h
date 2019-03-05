@@ -340,21 +340,24 @@ public:
     // adapting relay policy by bumping MAX_STANDARD_VERSION, and then later date
     // bumping the default CURRENT_VERSION at which point both CURRENT_VERSION and
     // MAX_STANDARD_VERSION will be equal.
-    static const int32_t MAX_STANDARD_VERSION=1953;
+    static const int32_t MAX_STANDARD_VERSION=1954;
 
     // The transaction version determines the type of CTxOut output transaction
     // is stored in the "vout" array of the transaction. "vout" can contain only
     // one type of CTxOut.
-    static const int32_t VERSION_COINBASE_TRANSFER = 1944;
-    static const int32_t VERSION_COIN_TRANSFER     = 1945;
-    static const int32_t VERSION_ROLE_CHANGE       = 1946;
-    static const int32_t VERSION_POLICY_CHANGE     = 1947;
-    static const int32_t VERSION_COIN_CREATION     = 1948;
-    static const int32_t VERSION_ROLE_CHANGE_FEE   = 1949;
-    static const int32_t VERSION_POLICY_CHANGE_FEE = 1950;
-    static const int32_t VERSION_COIN_CREATION_FEE = 1951;
-    static const int32_t VERSION_ROLE_CREATE       = 1952;
-    static const int32_t VERSION_ROLE_CREATE_FEE   = 1953;
+    static const int32_t VERSION_COINBASE_TRANSFER   = 1944;
+    static const int32_t VERSION_COIN_TRANSFER       = 1945;
+    static const int32_t VERSION_COIN_FORFEITURE     = 1946;
+    static const int32_t VERSION_COIN_CREATION       = 1947;
+    static const int32_t VERSION_COIN_CREATION_FEE   = 1948;
+
+    static const int32_t VERSION_ROLE_CREATION       = 1949;
+    static const int32_t VERSION_ROLE_CREATION_FEE   = 1950;
+    static const int32_t VERSION_ROLE_CHANGE         = 1951;
+    static const int32_t VERSION_ROLE_CHANGE_FEE     = 1952;
+
+    static const int32_t VERSION_POLICY_CHANGE       = 1953;
+    static const int32_t VERSION_POLICY_CHANGE_FEE   = 1954;
 
     // The local variables are made const to prevent unintended modification
     // without updating the cached hash value. However, CTransaction is not
@@ -417,7 +420,7 @@ public:
             case VERSION_ROLE_CHANGE_FEE:
             case VERSION_POLICY_CHANGE_FEE:
             case VERSION_COIN_CREATION_FEE:
-            case VERSION_ROLE_CREATE_FEE:
+            case VERSION_ROLE_CREATION_FEE:
                 return 2;
             default:
                 return 1;
@@ -565,17 +568,17 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
             for (size_t i = 0; i < tx.vout.size(); ++i)
                 tx.vout[i].nTxType = CTxOut::COIN_TRANSFER;
             // TODO: mark the change as coinbase
-        }
-        else {
+        } else {
             size_t i = 0;
             tx.vout[i++].nTxType = CTxOut::ROLE_CHANGE;
             // For transactions that carry a fee, the second vout is a change address
             if (tx.vout.size() > 1) {
                 switch (tx.nVersion) {
                     case CTransaction::VERSION_COIN_TRANSFER:
+                    case CTransaction::VERSION_COIN_CREATION_FEE:
                     case CTransaction::VERSION_ROLE_CHANGE_FEE:
                     case CTransaction::VERSION_POLICY_CHANGE_FEE:
-                    case CTransaction::VERSION_ROLE_CREATE_FEE:
+                    case CTransaction::VERSION_ROLE_CREATION_FEE:
                         tx.vout[i++].nTxType = CTxOut::COIN_TRANSFER;
                         break;
                 }
@@ -585,8 +588,8 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
             switch (tx.nVersion) {
                 case CTransaction::VERSION_ROLE_CHANGE:
                 case CTransaction::VERSION_ROLE_CHANGE_FEE:
-                case CTransaction::VERSION_ROLE_CREATE:
-                case CTransaction::VERSION_ROLE_CREATE_FEE:
+                case CTransaction::VERSION_ROLE_CREATION:
+                case CTransaction::VERSION_ROLE_CREATION_FEE:
                     txtype = CTxOut::ROLE_CHANGE;
                     break;
                 case CTransaction::VERSION_POLICY_CHANGE:
@@ -596,6 +599,7 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
                 case CTransaction::VERSION_COIN_CREATION:
                 case CTransaction::VERSION_COIN_CREATION_FEE:
                 case CTransaction::VERSION_COIN_TRANSFER:
+                case CTransaction::VERSION_COIN_FORFEITURE:
                     txtype = CTxOut::COIN_TRANSFER;
                     break;
                 default:

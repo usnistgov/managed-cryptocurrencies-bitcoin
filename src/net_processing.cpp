@@ -826,8 +826,8 @@ void PeerLogicValidation::BlockConnected(const std::shared_ptr<const CBlock>& pb
         switch(tx.nVersion) {
             case CTransaction::VERSION_ROLE_CHANGE_FEE:
             case CTransaction::VERSION_ROLE_CHANGE:
-            case CTransaction::VERSION_ROLE_CREATE_FEE:
-            case CTransaction::VERSION_ROLE_CREATE:
+            case CTransaction::VERSION_ROLE_CREATION_FEE:
+            case CTransaction::VERSION_ROLE_CREATION:
             {
                 CTxDestination accountAddress, parentAddress;
                 CManagedAccountDB accountDB;
@@ -859,11 +859,7 @@ void PeerLogicValidation::BlockConnected(const std::shared_ptr<const CBlock>& pb
                 }
                 break;
             }
-            // Account table does not need any update for these transactions
-            case CTransaction::VERSION_POLICY_CHANGE_FEE:
-            case CTransaction::VERSION_POLICY_CHANGE:
-            case CTransaction::VERSION_COINBASE_TRANSFER:
-            case CTransaction::VERSION_COIN_TRANSFER:
+            // Account table does not need any update for other transaction types
             default:
                 break;
         }

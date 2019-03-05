@@ -831,6 +831,9 @@ Coin CTxMemPool::GetRoleByDest(const CTxDestination& dest) const
         const CTransaction tx = txit->GetTx();
         switch (tx.nVersion) {
             case CTransaction::VERSION_COIN_TRANSFER:
+            case CTransaction::VERSION_COIN_FORFEITURE:
+            case CTransaction::VERSION_COIN_CREATION:
+            case CTransaction::VERSION_COIN_CREATION_FEE:
             case CTransaction::VERSION_POLICY_CHANGE:
             case CTransaction::VERSION_POLICY_CHANGE_FEE:
             {
@@ -845,8 +848,8 @@ Coin CTxMemPool::GetRoleByDest(const CTxDestination& dest) const
             }
             case CTransaction::VERSION_ROLE_CHANGE:
             case CTransaction::VERSION_ROLE_CHANGE_FEE:
-            case CTransaction::VERSION_ROLE_CREATE:
-            case CTransaction::VERSION_ROLE_CREATE_FEE:
+            case CTransaction::VERSION_ROLE_CREATION:
+            case CTransaction::VERSION_ROLE_CREATION_FEE:
             {
                 // Check all vout
                 for (const CTxOut out : tx.vout) {

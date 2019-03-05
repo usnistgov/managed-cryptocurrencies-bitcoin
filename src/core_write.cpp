@@ -56,7 +56,10 @@ UniValue ValueFromTxOut(const CTxOut& txout, int32_t txversion, unsigned int ind
             assert(txout.nTxType == CTxOut::COIN_TRANSFER);
             out.pushKV("value", ValueFromAmount(txout.nValue));
             break;
+        case CTransaction::VERSION_COIN_CREATION:
+        case CTransaction::VERSION_COIN_CREATION_FEE:
         case CTransaction::VERSION_COIN_TRANSFER:
+        case CTransaction::VERSION_COIN_FORFEITURE:
             // First vout is a role repeat (to prevent replay attacks)
             if (index == 0) {
                 assert(txout.nTxType == CTxOut::ROLE_CHANGE);
@@ -69,10 +72,23 @@ UniValue ValueFromTxOut(const CTxOut& txout, int32_t txversion, unsigned int ind
             }
             break;
         case CTransaction::VERSION_ROLE_CHANGE:
-        case CTransaction::VERSION_ROLE_CREATE:
+        case CTransaction::VERSION_ROLE_CREATION:
             // All vousts are role changes (the first one is a role repeat)
             assert(txout.nTxType == CTxOut::ROLE_CHANGE);
             out.pushKV("roles", ValueFromRoles(txout.nRole));
+            break;
+        case CTransaction::VERSION_ROLE_CHANGE_FEE:
+        case CTransaction::VERSION_ROLE_CREATION_FEE:
+            // The second vout is a coin transfer (to allow a fee)
+            if (index == 1) {
+                assert(txout.nTxType == CTxOut::COIN_TRANSFER);
+                out.pushKV("value", ValueFromAmount(txout.nValue));
+            }
+            // All other vouts are roles changes (the first one is a role repeat)
+            else {
+                assert(txout.nTxType == CTxOut::ROLE_CHANGE);
+                out.pushKV("roles", ValueFromRoles(txout.nRole));
+            }
             break;
         case CTransaction::VERSION_POLICY_CHANGE:
             // First vout is a role repeat (to prevent replay attacks)
@@ -84,19 +100,6 @@ UniValue ValueFromTxOut(const CTxOut& txout, int32_t txversion, unsigned int ind
             else {
                 assert(txout.nTxType == CTxOut::POLICY_CHANGE);
                 out.pushKV("policy", ValueFromPolicy(txout.nPolicy));
-            }
-            break;
-        case CTransaction::VERSION_ROLE_CHANGE_FEE:
-        case CTransaction::VERSION_ROLE_CREATE_FEE:
-            // The second vout is a coin transfer (to allow a fee)
-            if (index == 1) {
-                assert(txout.nTxType == CTxOut::COIN_TRANSFER);
-                out.pushKV("value", ValueFromAmount(txout.nValue));
-            }
-            // All other vouts are roles changes (the first one is a role repeat)
-            else {
-                assert(txout.nTxType == CTxOut::ROLE_CHANGE);
-                out.pushKV("roles", ValueFromRoles(txout.nRole));
             }
             break;
         case CTransaction::VERSION_POLICY_CHANGE_FEE:
@@ -114,19 +117,6 @@ UniValue ValueFromTxOut(const CTxOut& txout, int32_t txversion, unsigned int ind
             else {
                 assert(txout.nTxType == CTxOut::POLICY_CHANGE);
                 out.pushKV("policy", ValueFromPolicy(txout.nPolicy));
-            }
-            break;
-        case CTransaction::VERSION_COIN_CREATION:
-        case CTransaction::VERSION_COIN_CREATION_FEE:
-            // First vout is a role repeat (to prevent replay attacks)
-            if (index == 0) {
-                assert(txout.nTxType == CTxOut::ROLE_CHANGE);
-                out.pushKV("roles", ValueFromRoles(txout.nRole));
-            }
-            // Following vouts are coin transfer
-            else {
-                assert(txout.nTxType == CTxOut::COIN_TRANSFER);
-                out.pushKV("value", ValueFromAmount(txout.nValue));
             }
             break;
         default:

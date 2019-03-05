@@ -2173,34 +2173,22 @@ UniValue gettransaction(const JSONRPCRequest& request)
     CAmount nNet = nCredit - nDebit;
     CAmount nFee = (wtx.IsFromMe(filter) ? wtx.tx->GetValueOut() - nDebit : 0);
 
-    switch (wtx.tx->nVersion) {
-        case CTransaction::VERSION_ROLE_CHANGE:
-        case CTransaction::VERSION_ROLE_CHANGE_FEE:
-        case CTransaction::VERSION_ROLE_CREATE:
-        case CTransaction::VERSION_ROLE_CREATE_FEE:
-            for (const auto& tx_out : wtx.tx->vout)
-                if (tx_out.nTxType == CTxOut::ROLE_CHANGE)
-                    entry.push_back(Pair("roles", ValueFromRoles(tx_out.nRole)));
-            if (wtx.IsFromMe(filter))
-                entry.push_back(Pair("fee", ValueFromAmount(nFee)));
-            break;
-        case CTransaction::VERSION_POLICY_CHANGE:
-        case CTransaction::VERSION_POLICY_CHANGE_FEE:
-            for (const auto& tx_out : wtx.tx->vout)
-                if (tx_out.nTxType == CTxOut::POLICY_CHANGE)
-                    entry.push_back(Pair("policy", ValueFromPolicy(tx_out.nPolicy)));
-            if (wtx.IsFromMe(filter))
-                entry.push_back(Pair("fee", ValueFromAmount(nFee)));
-            break;
-        case CTransaction::VERSION_COIN_TRANSFER:
-        case CTransaction::VERSION_COINBASE_TRANSFER:
-            entry.push_back(Pair("amount", ValueFromAmount(nNet - nFee)));
-            if (wtx.IsFromMe(filter))
-                entry.push_back(Pair("fee", ValueFromAmount(nFee)));
-            break;
-        default:
-            throw std::ios_base::failure(std::string(__func__) + ":" + std::to_string(__LINE__) + "> Unknown transaction version: " + std::to_string(wtx.tx->nVersion)); // FIXME
+    for (const auto& tx_out : wtx.tx->vout) {
+        switch (tx_out.nTxType) {
+            case CTxOut::ROLE_CHANGE:
+                entry.push_back(Pair("roles", ValueFromRoles(tx_out.nRole)));
+                break;
+            case CTxOut::POLICY_CHANGE:
+                entry.push_back(Pair("policy", ValueFromPolicy(tx_out.nPolicy)));
+                break;
+            default:
+                break;
+        }
     }
+
+    if (wtx.IsFromMe(filter))
+            entry.push_back(Pair("fee", ValueFromAmount(nFee)));
+    entry.push_back(Pair("amount", ValueFromAmount(nNet - nFee)));
 
     WalletTxToJSON(wtx, entry);
 
