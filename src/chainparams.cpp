@@ -15,7 +15,7 @@
 
 #include <chainparamsseeds.h>
 
-static CBlock CreateGenesisBlock(const CScript& managerOutputScript, uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, CManagementPolicy& policy)
+static CBlock CreateGenesisBlock(const CScript& managerOutputScript, uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CManagementPolicy& policy)
 {
     // Original genesis transaction
     const char* pszTimestamp = "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks";
@@ -55,13 +55,13 @@ static CBlock CreateGenesisBlock(const CScript& managerOutputScript, uint32_t nT
 /**
  * Build the genesis block. 
  */
-static CBlock CreateGenesisBlock(uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, CManagementPolicy& policy)
+static CBlock CreateGenesisBlock(uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CManagementPolicy& policy)
 {
     const CScript managerOutputScript = CScript() << ParseHex("0427313de2e56c56e525b196a264526c508ed557f7d61cd3d9a6480a3bb35e10ebdf42abe10aff1c4706431afbc5b1fa970a30ce1845a88cb31de33ff86476781b") << OP_CHECKSIG;
     return CreateGenesisBlock(managerOutputScript, nTime, nNonce, nBits, nVersion, policy);
 }
 
-static CBlock CreateTestGenesisBlock(uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, CManagementPolicy& policy)
+static CBlock CreateTestGenesisBlock(uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CManagementPolicy& policy)
 {
     const CScript managerOutputScript = CScript() << ParseHex("047208168f6ba4b780fc4a179d084e34f22f130857f0479915bc030860449d6a4f77e595575c9665aad83688b945a28d1e13731d0878bee170bedc5d5ee07d36ec") << OP_CHECKSIG;
     return CreateGenesisBlock(managerOutputScript, nTime, nNonce, nBits, nVersion, policy);

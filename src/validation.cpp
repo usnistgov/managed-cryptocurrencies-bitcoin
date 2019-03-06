@@ -3098,11 +3098,10 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
     for (const auto& tx : block.vtx) {
         if (tx->nVersion == CTransaction::VERSION_COIN_CREATION ||
                 tx->nVersion == CTransaction::VERSION_COIN_CREATION_FEE) {
-            for (size_t idx = 0; idx < tx->vout.size(); ++idx)
+            for (size_t idx = tx->GetExtraOutputOffset(); idx < tx->vout.size(); ++idx)
             {
-                if (tx->vout[idx].nTxType == CTxOut::COIN_TRANSFER) {
-                    nValueOut += tx->vout[idx].nValue;
-                }
+                assert (tx->vout[idx].nTxType == CTxOut::COIN_TRANSFER);
+                nValueOut += tx->vout[idx].nValue;
             }
         }
     }

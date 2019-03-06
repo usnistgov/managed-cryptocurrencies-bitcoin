@@ -74,7 +74,7 @@ public:
     const CCheckpointData& Checkpoints() const { return checkpointData; }
     const ChainTxData& TxData() const { return chainTxData; }
     void UpdateVersionBitsParameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout);
-    CManagementPolicy& GetManagementPolicy() { return managementPolicy; }
+    CManagementPolicy GetManagementPolicy() const { return managementPolicy; }
 protected:
     CChainParams() {}
 

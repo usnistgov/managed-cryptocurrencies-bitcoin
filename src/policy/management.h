@@ -46,15 +46,15 @@ public:
         int nManagementTxMinPerPeriod   = 0;
     } activePolicy;
 
-    CActivePolicy& GetActivePolicy() {
+    CActivePolicy GetActivePolicy() const {
         return activePolicy;
     }
 
-    CAmount& GetCurrentReward() {
+    CAmount GetCurrentReward() const {
         return activePolicy.nCurBlockReward;
     }
 
-    CAmount& GetCoinCreationLimit() {
+    CAmount GetCoinCreationLimit() const {
         return activePolicy.nRoleCCoinCreationLimit;
     }
 

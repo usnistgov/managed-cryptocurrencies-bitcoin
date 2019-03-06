@@ -435,6 +435,49 @@ public:
         return GetExtraOutputOffset();
     }
 
+    size_t GetMinVoutSize() const {
+        switch (nVersion)
+        {
+            case VERSION_COINBASE_TRANSFER:
+            case VERSION_POLICY_CHANGE:
+            case VERSION_ROLE_CHANGE:
+                return 1;
+            case VERSION_COIN_TRANSFER:
+            case VERSION_ROLE_CREATION:
+            case VERSION_COIN_CREATION:
+            case VERSION_COIN_FORFEITURE:
+            case VERSION_ROLE_CHANGE_FEE:
+                return 2;
+            case VERSION_ROLE_CREATION_FEE:
+            case VERSION_COIN_CREATION_FEE:
+            case VERSION_POLICY_CHANGE_FEE:
+                return 3;
+            default:
+                return 0;
+        }
+    }
+
+    size_t GetMinVinSize() const {
+        switch (nVersion)
+        {
+            case VERSION_COINBASE_TRANSFER:
+            case VERSION_COIN_CREATION:
+            case VERSION_ROLE_CREATION:
+            case VERSION_POLICY_CHANGE:
+            case VERSION_ROLE_CHANGE:
+                return 1;
+            case VERSION_COIN_TRANSFER:
+            case VERSION_COIN_FORFEITURE:
+            case VERSION_COIN_CREATION_FEE:
+            case VERSION_ROLE_CREATION_FEE:
+            case VERSION_ROLE_CHANGE_FEE:
+            case VERSION_POLICY_CHANGE_FEE:
+                return 2;
+            default:
+                return 0;
+        }
+    }
+
     /**
      * Get the total transaction size in bytes, including witness data.
      * "Total Size" defined in BIP141 and BIP144.

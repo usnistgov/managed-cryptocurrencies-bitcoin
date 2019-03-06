@@ -171,82 +171,24 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
     if (::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS) * WITNESS_SCALE_FACTOR > MAX_BLOCK_WEIGHT)
         return state.DoS(100, false, REJECT_INVALID, "bad-txns-oversize");
 
-    switch (tx.nVersion) {
-        case CTransaction::VERSION_COINBASE_TRANSFER:
-        {
-            // Check for negative or overflow output values
-            CAmount nValueOut = 0;
-            for (size_t idx = 0; idx < tx.vout.size(); ++idx)
-            {
-                if (tx.vout[idx].nTxType != CTxOut::COIN_TRANSFER)
-                    return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-wrong-type");
-                CAmount nValue = tx.vout[idx].nValue;
-                if (nValue < 0)
-                    return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-negative");
-                if (nValue > MAX_MONEY)
-                    return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-toolarge");
-                nValueOut += nValue;
-                if (!MoneyRange(nValueOut))
-                    return state.DoS(100, false, REJECT_INVALID, "bad-txns-txouttotal-toolarge");
-            }
-            break;
-        }
-        case CTransaction::VERSION_COIN_TRANSFER:
-        case CTransaction::VERSION_COIN_FORFEITURE:
-        {
-            // Check if the first vout is a "role repeat"
-            if (tx.vout[0].nTxType != CTxOut::ROLE_CHANGE)
-                return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-wrong-type");
-
-            // Check for negative or overflow output values
-            CAmount nValueOut = 0;
-            // Start at offset 1 because the first vout is a "role repeat"
-            for (size_t idx = 1; idx < tx.vout.size(); ++idx)
-            {
-                if (tx.vout[idx].nTxType != CTxOut::COIN_TRANSFER)
-                    return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-wrong-type");
-                CAmount nValue = tx.vout[idx].nValue;
-                if (nValue < 0)
-                    return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-negative");
-                if (nValue > MAX_MONEY)
-                    return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-toolarge");
-                nValueOut += nValue;
-                if (!MoneyRange(nValueOut))
-                    return state.DoS(100, false, REJECT_INVALID, "bad-txns-txouttotal-toolarge");
-            }
-            break;
-        }
-        case CTransaction::VERSION_COIN_CREATION:
-        case CTransaction::VERSION_COIN_CREATION_FEE:
-        {
-            CAmount nValueOut = 0;
-            CManagementPolicy managementPolicy;
-
-            for (size_t idx = 0; idx < tx.vout.size(); ++idx)
-            {
-                if (tx.vout[idx].nTxType == CTxOut::COIN_TRANSFER) {
-                    CAmount nValue = tx.vout[idx].nValue;
-                    if (nValue < 0)
-                        return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-negative");
-                    if (nValue > MAX_MONEY)
-                        return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-toolarge");
-                    nValueOut += nValue;
-                    if (!MoneyRange(nValueOut) || nValueOut > managementPolicy.GetCoinCreationLimit())
-                        return state.DoS(100, false, REJECT_INVALID, "bad-txns-txouttotal-toolarge");
-                }
-            }
-            break;
-        }
-        case CTransaction::VERSION_POLICY_CHANGE:
-        case CTransaction::VERSION_POLICY_CHANGE_FEE:
-        case CTransaction::VERSION_ROLE_CHANGE:
-        case CTransaction::VERSION_ROLE_CHANGE_FEE:
-        case CTransaction::VERSION_ROLE_CREATION:
-        case CTransaction::VERSION_ROLE_CREATION_FEE:
-            // TODO
-            break;
-        default:
-            return state.DoS(100, false, REJECT_INVALID, "bad-txns-version");
+    // Check for negative or overflow output values
+    CAmount nValueOut = 0;
+    // Start at offset 1 because the first vout is a "role repeat"
+    for (size_t idx = 0; idx < tx.vout.size(); ++idx)
+    {
+        if (tx.vout[idx].nTxType != CTxOut::COIN_TRANSFER)
+            continue;
+        CAmount nValue = tx.vout[idx].nValue;
+        if (nValue < 0)
+            return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-negative");
+        if (nValue > MAX_MONEY)
+            return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-toolarge");
+        nValueOut += nValue;
+        if (!MoneyRange(nValueOut))
+            return state.DoS(100, false, REJECT_INVALID, "bad-txns-txouttotal-toolarge");
+        if (tx.nVersion == CTransaction::VERSION_COIN_CREATION || tx.nVersion == CTransaction::VERSION_COIN_CREATION_FEE)
+            if (nValueOut > Params().GetManagementPolicy().GetCoinCreationLimit())
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-coin-creation-exeeds-policy");
     }
 
     // Check for duplicate inputs - note that this check is slow so we skip it in CheckBlock
@@ -416,7 +358,13 @@ bool isAuthorized(const CTransaction& tx, const CRoleChangeMode& inRole, const C
 
 bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoinsViewCache& inputs, int nSpendHeight, CAmount& txfee)
 {
-    // are the actual inputs available?
+    // Quick check on the minimum number of inputs and outputs
+    if (tx.vin.size() < tx.GetMinVinSize())
+            return state.Invalid(false, REJECT_INVALID, "bad-txns-too-few-vin");
+    if (tx.vout.size() < tx.GetMinVoutSize())
+            return state.Invalid(false, REJECT_INVALID, "bad-txns-too-few-vout");
+
+    // Are the actual inputs available?
     if (!inputs.HaveInputs(tx)) {
         return state.DoS(100, false, REJECT_INVALID, "bad-txns-inputs-missingorspent", false,
                          strprintf("%s: inputs missing/spent", __func__));
@@ -473,7 +421,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
                     return state.Invalid(false, REJECT_INVALID, "bad-txns-coin-transfer-expected");
                 assert(ExtractDestination(coin.out.scriptPubKey, dest2));
                 if (dest1 != dest2)
-                    return state.Invalid(false, REJECT_INVALID, "bad-txns-address-mismatch");
+                    return state.Invalid(false, REJECT_INVALID, "bad-txns-fee-address-mismatch");
                 // Fallthrough
             }
             case CTransaction::VERSION_ROLE_CHANGE:
@@ -497,6 +445,20 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
                 }
                 break;
             }
+            case CTransaction::VERSION_COIN_FORFEITURE:
+            {
+                // Check that the following vins don't use the credentials address
+                for (size_t i = tx.GetExtraInputOffset(); i < tx.vin.size(); ++i) {
+                    const COutPoint &prevout = tx.vin[i].prevout;
+                    const Coin& coin = inputs.AccessCoin(prevout);
+                    if (coin.out.nTxType != CTxOut::COIN_TRANSFER)
+                        return state.Invalid(false, REJECT_INVALID, "bad-txns-coin-transfer-expected");
+                    assert(ExtractDestination(coin.out.scriptPubKey, dest2));
+                    if (dest1 == dest2)
+                        return state.Invalid(false, REJECT_INVALID, "bad-txns-address-reuse");
+                }
+                break;
+            }
             default:
             {
                 // For all other transactions, ensure that all vins use the same address
@@ -508,7 +470,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
                       return state.Invalid(false, REJECT_INVALID, "bad-txns-coin-transfer-expected");
                     assert(ExtractDestination(coin.out.scriptPubKey, dest2));
                     if (dest1 != dest2)
-                        return state.Invalid(false, REJECT_INVALID, "bad-txns-address-mismatch");
+                        return state.Invalid(false, REJECT_INVALID, "bad-txns-vin-address-mismatch");
                 }
             }
         }
@@ -517,7 +479,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
         // FIXME (also change address of coinbase transfer)
         assert(ExtractDestination(tx.vout[0].scriptPubKey, dest2));
         if (dest1 != dest2)
-            return state.Invalid(false, REJECT_INVALID, "bad-txns-address-mismatch");
+            return state.Invalid(false, REJECT_INVALID, "bad-txns-cred-address-mismatch");
 
         // Check that the change address is the same as the vin address
         switch (tx.nVersion)
@@ -530,7 +492,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
                 assert(tx.vout.size() > 1);
                 assert(ExtractDestination(tx.vout[1].scriptPubKey, dest2));
                 if (dest1 != dest2)
-                    return state.Invalid(false, REJECT_INVALID, "bad-txns-address-mismatch");
+                    return state.Invalid(false, REJECT_INVALID, "bad-txns-chng-address-mismatch");
                 break;
             default:
                 break;
@@ -613,12 +575,58 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
             // FIXME Make sure that the current policy allows for these transaction, but perhaps elsewhere
             txfee = 0;
             break;
+        case CTransaction::VERSION_COIN_CREATION_FEE:
+        {
+            // Handle the special case of coin creation with fee.
+            // Since the amount in vout is created out of thin air,
+            // we need a special method to calculate the fee. We take
+            // vin[1] as the fee address and vout[1] as the change address.
+            // The difference is considered to be the fee.
+            CAmount nValueIn = 0;
+            const COutPoint &prevout = tx.vin[1].prevout;
+            const Coin& coin = inputs.AccessCoin(prevout);
+
+            if (coin.out.nTxType != CTxOut::COIN_TRANSFER)
+                return state.Invalid(false, REJECT_INVALID, "bad-txns-coin-transfer-expected");
+
+            assert(!coin.IsSpent());
+
+            // If prev is coinbase, check that it's matured
+            if (coin.IsCoinBase() && nSpendHeight - coin.nHeight < COINBASE_MATURITY) {
+                return state.Invalid(false,
+                REJECT_INVALID, "bad-txns-premature-spend-of-coinbase",
+                strprintf("tried to spend coinbase at depth %d", nSpendHeight - coin.nHeight));
+            }
+
+            // Check for negative or overflow input values
+            nValueIn += coin.out.nValue;
+            if (!MoneyRange(coin.out.nValue) || !MoneyRange(nValueIn)) {
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-inputvalues-outofrange");
+            }
+
+            CTxOut change_out = tx.vout[1];
+            if (change_out.nTxType != CTxOut::COIN_TRANSFER)
+                return state.Invalid(false, REJECT_INVALID, "bad-txns-coin-transfer-expected");
+
+            // Compare the amount used as inputs to the amount used as outputs
+            const CAmount value_out = change_out.nValue;
+            if (nValueIn < value_out) {
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-in-belowout", false,
+                        strprintf("value in (%s) < value out (%s)", FormatMoney(nValueIn), FormatMoney(value_out)));
+            }
+
+            // Tally transaction fees
+            const CAmount txfee_aux = nValueIn - value_out;
+            if (!MoneyRange(txfee_aux)) {
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-fee-outofrange");
+            }
+            break;
+        }
         case CTransaction::VERSION_COINBASE_TRANSFER:
         case CTransaction::VERSION_COIN_TRANSFER:
         case CTransaction::VERSION_COIN_FORFEITURE:
         case CTransaction::VERSION_ROLE_CHANGE_FEE:
         case CTransaction::VERSION_POLICY_CHANGE_FEE:
-        case CTransaction::VERSION_COIN_CREATION_FEE:
         case CTransaction::VERSION_ROLE_CREATION_FEE:
         {
             CAmount nValueIn = 0;
