@@ -5,6 +5,7 @@
 
 #include <validation.h>
 
+#include <accounts/db.h>
 #include <arith_uint256.h>
 #include <chain.h>
 #include <chainparams.h>
@@ -1813,6 +1814,54 @@ static unsigned int GetBlockScriptFlags(const CBlockIndex* pindex, const Consens
     return flags;
 }
 
+void UpdateAccountTree(const CChainParams& chainparams, const CBlock& block)
+{
+    for (unsigned int i = 0; i < block.vtx.size(); i++) {
+        const CTransaction &tx = *(block.vtx[i]);
+
+        // Update the account hierarchy tree
+        switch (tx.nVersion) {
+            case CTransaction::VERSION_ROLE_CHANGE_FEE:
+            case CTransaction::VERSION_ROLE_CHANGE:
+            case CTransaction::VERSION_ROLE_CREATION_FEE:
+            case CTransaction::VERSION_ROLE_CREATION: {
+                CTxDestination accountAddress, parentAddress;
+                CManagedAccountDB accountDB;
+
+                // Process the genesis block
+                if (block.GetHash() == chainparams.GetConsensus().hashGenesisBlock) {
+                    for (size_t i = 0; i < tx.vout.size(); ++i) {
+                        const CTxOut &vout = tx.vout[i];
+                        if (ExtractDestination(vout.scriptPubKey, accountAddress)) {
+                            CManagedAccountData accountData(vout.nRole);
+                            accountDB.UpdateAccount(accountAddress, accountData);
+                        }
+                    }
+                } else {
+                    // Default block processing
+                    if (!ExtractDestination(tx.vout[0].scriptPubKey, parentAddress))
+                        break;
+                    // Update the "manager's" roles, in case it dropped them
+                    CManagedAccountData parentData(tx.vout[0].nRole);
+                    accountDB.UpdateAccount(parentAddress, parentData);
+                    // Update the hierarchy for the accounts modified by this transaction
+                    for (size_t i = tx.GetExtraOutputOffset(); i < tx.vout.size(); ++i) {
+                        const CTxOut &vout = tx.vout[i];
+                        if (ExtractDestination(vout.scriptPubKey, accountAddress)) {
+                            CManagedAccountData accountData(vout.nRole, parentAddress);
+                            accountDB.UpdateAccount(accountAddress, accountData);
+                        }
+                    }
+                }
+                break;
+            }
+            // Account table does not need any update for other transaction types
+            default:
+                break;
+        }
+    }
+}
+
 
 
 static int64_t nTimeCheck = 0;
@@ -2024,6 +2073,9 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
         }
         UpdateCoins(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight);
     }
+
+    UpdateAccountTree(chainparams, block);
+
     int64_t nTime3 = GetTimeMicros(); nTimeConnect += nTime3 - nTime2;
     LogPrint(BCLog::BENCH, "      - Connect %u transactions: %.2fms (%.3fms/tx, %.3fms/txin) [%.2fs (%.2fms/blk)]\n", (unsigned)block.vtx.size(), MILLI * (nTime3 - nTime2), MILLI * (nTime3 - nTime2) / block.vtx.size(), nInputs <= 1 ? 0 : MILLI * (nTime3 - nTime2) / (nInputs-1), nTimeConnect * MICRO, nTimeConnect * MILLI / nBlocksTotal);
 
@@ -4278,6 +4330,8 @@ bool LoadBlockIndex(const CChainParams& chainparams)
 bool CChainState::LoadGenesisBlock(const CChainParams& chainparams)
 {
     LOCK(cs_main);
+
+    UpdateAccountTree(chainparams, chainparams.GenesisBlock());
 
     // Check whether we're already initialized by checking for genesis in
     // mapBlockIndex. Note that we can't use chainActive here, since it is

@@ -5,8 +5,6 @@
 
 #include <net_processing.h>
 
-//#include <accounts/data.h>
-#include <accounts/db.h>
 #include <addrman.h>
 #include <arith_uint256.h>
 #include <blockencodings.h>
@@ -817,52 +815,9 @@ void PeerLogicValidation::BlockConnected(const std::shared_ptr<const CBlock>& pb
     LOCK(g_cs_orphans);
 
     std::vector<uint256> vOrphanErase;
-    const Consensus::Params& consensusParams = Params().GetConsensus();
 
     for (const CTransactionRef& ptx : pblock->vtx) {
         const CTransaction& tx = *ptx;
-
-        // Update the account hierarchy tree
-        switch(tx.nVersion) {
-            case CTransaction::VERSION_ROLE_CHANGE_FEE:
-            case CTransaction::VERSION_ROLE_CHANGE:
-            case CTransaction::VERSION_ROLE_CREATION_FEE:
-            case CTransaction::VERSION_ROLE_CREATION:
-            {
-                CTxDestination accountAddress, parentAddress;
-                CManagedAccountDB accountDB;
-
-                // Process the genesis block
-                if (pblock->GetHash() == consensusParams.hashGenesisBlock) {
-                    for (size_t i = tx.GetExtraOutputOffset(); i < tx.vout.size(); ++i) {
-                        const CTxOut& vout = tx.vout[i];
-                        if (ExtractDestination(vout.scriptPubKey, accountAddress)) {
-                            CManagedAccountData accountData(vout.nRole);
-                            accountDB.UpdateAccount(accountAddress, accountData);
-                        }
-                    }
-                } else {
-                    // Default block processing
-                    if (!ExtractDestination(tx.vout[0].scriptPubKey, parentAddress))
-                        break;
-                    // Update the "manager's" roles, in case it dropped them
-                    CManagedAccountData parentData(tx.vout[0].nRole);
-                    accountDB.UpdateAccount(parentAddress, parentData);
-                    // Update the hierarchy for the accounts modified by this transaction
-                    for (size_t i = tx.GetExtraOutputOffset(); i < tx.vout.size(); ++i) {
-                        const CTxOut& vout = tx.vout[i];
-                        if (ExtractDestination(vout.scriptPubKey, accountAddress)) {
-                            CManagedAccountData accountData(vout.nRole, parentAddress);
-                            accountDB.UpdateAccount(accountAddress, accountData);
-                        }
-                    }
-                }
-                break;
-            }
-            // Account table does not need any update for other transaction types
-            default:
-                break;
-        }
 
         // Which orphan pool entries must we evict?
         for (const auto& txin : tx.vin) {
