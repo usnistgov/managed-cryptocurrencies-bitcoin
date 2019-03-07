@@ -832,35 +832,6 @@ static void ApplyStats(CCoinsStats &stats, CHashWriter& ss, const uint256& hash,
     for (const auto output : outputs) {
         ss << VARINT(output.first + 1);
         ss << output.second.out.scriptPubKey;
-// FIXME
-switch(output.second.out.nTxType) {
-case CTxOut::COIN_TRANSFER:
-	std::cout << "\t" << __func__ << " vout index=" << output.first+1 << " nValue=" << output.second.out.nValue << std::endl;
-    ss << VARINT(output.second.out.nValue);
-    stats.nTotalAmount += output.second.out.nValue;
-	break;
-case CTxOut::ROLE_CHANGE:
-	std::cout << "\t" << __func__ << " vout index=" << output.first+1 << " nRole=";
-	std::cout << (output.second.out.nRole.fRoleM ? 'M' : '.');
-	std::cout << (output.second.out.nRole.fRoleC ? 'C' : '.');
-	std::cout << (output.second.out.nRole.fRoleL ? 'L' : '.');
-	std::cout << (output.second.out.nRole.fRoleR ? 'R' : '.');
-	std::cout << (output.second.out.nRole.fRoleA ? 'A' : '.');
-	std::cout << (output.second.out.nRole.fRoleD ? 'D' : '.');
-	std::cout << std::endl;
-	break;
-case CTxOut::POLICY_CHANGE:
-	std::cout << "\t" << __func__ << " vout index=" << output.first+1 << " nPolicy=";
-	std::cout << (output.second.out.nPolicy.fPrmnt ? "Perm" : "Temp");
-	std::cout << ':';
-	std::cout << output.second.out.nPolicy.nType;
-	std::cout << ':';
-	std::cout << output.second.out.nPolicy.nParam;
-	std::cout << std::endl;
-	break;
-default:
-	std::cout << "\t" << __func__ << " vout index=" << output.first+1 << " Invalid nTxType: " << output.second.out.nTxType << std::endl;
-}
         stats.nTransactionOutputs++;
         stats.nBogoSize += 32 /* txid */ + 4 /* vout index */ + 4 /* height + coinbase */ + 8 /* amount */ +
                            2 /* scriptPubKey len */ + output.second.out.scriptPubKey.size() /* scriptPubKey */;
@@ -889,8 +860,6 @@ static bool GetUTXOStats(CCoinsView *view, CCoinsStats &stats)
         Coin coin;
         if (pcursor->GetKey(key) && pcursor->GetValue(coin)) {
             if (!outputs.empty() && key.hash != prevkey) {
-// FIXME
-std::cout << "\t" << __func__ << " key=" << pcursor->GetKey(key) << " value=" << pcursor->GetValue(coin) << std::endl;
                 ApplyStats(stats, ss, prevkey, outputs);
                 outputs.clear();
             }
