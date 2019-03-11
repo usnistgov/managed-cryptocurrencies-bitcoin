@@ -557,10 +557,11 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
 
         // Check that the following vouts don't use the vin address
         // FIXME might be possible for coin creation - check with team
-        for (size_t i = tx.GetExtraOutputOffset(); i < tx.vout.size(); ++i) {
-            assert(ExtractDestination(tx.vout[i].scriptPubKey, dest2));
-            if (dest1 == dest2)
-                return state.Invalid(false, REJECT_INVALID, "bad-txns-address-reuse");
+        if (tx.nVersion != CTransaction::VERSION_COIN_FORFEITURE)
+            for (size_t i = tx.GetExtraOutputOffset(); i < tx.vout.size(); ++i) {
+                assert(ExtractDestination(tx.vout[i].scriptPubKey, dest2));
+                if (dest1 == dest2)
+                    return state.Invalid(false, REJECT_INVALID, "bad-txns-address-reuse");
         }
     }
 
