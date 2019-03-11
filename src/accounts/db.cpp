@@ -36,7 +36,7 @@ bool CManagedAccountDB::UpdateAccount(CTxDestination address, CManagedAccountDat
     std::cout << __func__ << ":" << __LINE__ << ">   Parent: " ;
     std::cout << (IsValidDestination(account.GetParent())? EncodeDestination(account.GetParent()) : "-none-");
     std::cout << std::endl;
-    std::cout << __func__ << ":" << __LINE__ << ">    Roles: ";
+    std::cout << __func__ << ":" << __LINE__ << ">    New roles: ";
     std::cout << ValueFromRoles(account.GetRoles()).get_str() << std::endl;
     std::cout << __func__ << ":" << __LINE__ << "> Children: ";
 
@@ -49,11 +49,19 @@ bool CManagedAccountDB::UpdateAccount(CTxDestination address, CManagedAccountDat
     if(!ExistsAccountForAddress(address)) {
         return AddAccount(address, account);
     } else {
-//        if (EncodeDestination(account.GetParent()) == ""){
-//            std::cout << "account parent:" << EncodeDestination(account.GetParent()) << ":" << std::endl;
-//            std::cout << "no parent, we consider it root" << std::endl;
-//            rootAccountAddress = address;
-//        }
+        // Reattaching to the new parent if previous roles are empty
+        if(
+            ValueFromRoles(accountDB.at(address).GetRoles()).get_str() == "......"
+            && IsValidDestination(account.GetParent())
+        ) {
+            std::cout << __func__ << ":" << __LINE__ << "> Reattaching " << EncodeDestination(address);
+            std::cout << " to parent " << EncodeDestination(account.GetParent()) << std::endl;
+
+            accountDB.at(accountDB.at(address).GetParent()).RemoveChild(address);
+            accountDB.at(account.GetParent()).AddChild(address);
+            accountDB.at(address).SetParent(account.GetParent());
+
+        }
 
         accountDB.at(address).SetRoles(account.GetRoles());
 

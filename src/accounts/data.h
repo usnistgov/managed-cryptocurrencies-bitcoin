@@ -36,6 +36,7 @@ public:
     const CRoleChangeMode& GetRoles() const;
     void SetRoles(const CRoleChangeMode& inputRoles);
     const CTxDestination& GetParent() const;
+    void SetParent(const CTxDestination& parentAddress);
     const std::vector <CTxDestination>& GetChildren() const;
 
     std::string ToString() const;

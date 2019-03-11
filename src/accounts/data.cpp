@@ -28,6 +28,11 @@ const CTxDestination& CManagedAccountData::GetParent() const
     return accountParent;
 }
 
+void CManagedAccountData::SetParent(const CTxDestination& parentAddress)
+{
+    accountParent = parentAddress;
+}
+
 const std::vector<CTxDestination>& CManagedAccountData::GetChildren() const
 {
     return accountChildren;
